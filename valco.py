@@ -156,7 +156,14 @@ class Valco_Valve_Commands:
 class GSV(Valco_Valve_Commands):
     """ Commands specific to 2 position valves, Gas Sample Valve.
 
-        Position A = inject, position B = load.
+        Position A = inject, position B = load -- true for most GSVs, but
+        not all: flight/src/uav.cmd's grammar has a separate
+        &GSVVALVEPOS_Inv rule used only for UCATS's channel 3 GSV, where
+        Inject maps to position B and Load to position A (confirmed real
+        plumbing difference, not a typo -- drivers/valve/valco.c's
+        switch_valve() maps position 1/2 to GOA/GOB identically for every
+        valve ID, so the inversion is channel-3-specific wiring, not a
+        driver-level quirk). Pass inverted=True for that valve.
         Tracks last known position in self.pos and is tolerant of occasional
         bad cp reads (one automatic retry on garbled data).
 
@@ -164,11 +171,12 @@ class GSV(Valco_Valve_Commands):
         bus lock with all other valve objects.
     """
 
-    def __init__(self, add, port=None, baud=9600, ser=None):
+    def __init__(self, add, port=None, baud=9600, ser=None, inverted=False):
         super().__init__(port=port, baud=baud, ser=ser)
         self.add = add
         self.pos = 'Unknown'
         self.verbose = True
+        self.inverted = inverted
 
     def _go_position(self, cmd, pos):
         """ Send a two-position move command twice (double-tap for reliability). """
@@ -221,15 +229,15 @@ class GSV(Valco_Valve_Commands):
         self._go_position('gob', 'B')
 
     def load(self):
-        """ 'load' command is position B """
-        self.gob()
+        """ 'load' command is position B (position A if inverted) """
+        self.goa() if self.inverted else self.gob()
         if self.verbose:
             print(f'{datetime.now()} load {self.add}')
             logging.info(f'load {self.add}')
 
     def inject(self):
-        """ 'inject' command is position A """
-        self.goa()
+        """ 'inject' command is position A (position B if inverted) """
+        self.gob() if self.inverted else self.goa()
         if self.verbose:
             print(f'{datetime.now()} inject {self.add}')
             logging.info(f'inject {self.add}')
@@ -238,9 +246,11 @@ class GSV(Valco_Valve_Commands):
         """ Returns the valve position as load/inject instead of A/B """
         if self.pos not in ('A', 'B'):
             self.cp()
-        if self.pos == 'A':
+        inject_pos = 'B' if self.inverted else 'A'
+        load_pos = 'A' if self.inverted else 'B'
+        if self.pos == inject_pos:
             return 'inject'
-        elif self.pos == 'B':
+        elif self.pos == load_pos:
             return 'load'
         else:
             logging.warning(f'GSV{self.add} pos_txt unable to map position; self.pos={self.pos!r}')

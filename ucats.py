@@ -98,6 +98,7 @@ class Instrument_UCATS:
         # _schedule_injection_timing() below. Other channels are
         # phase-invariant (same program every cycle).
         self.gsv_phase = 'A'
+        self.heartbeat_state = False   # last state written by _heartbeat_pulse()
         self.injection_t0 = None
         self.injection_ssv_pos = None
         self.eng_df = pd.DataFrame()
@@ -119,7 +120,8 @@ class Instrument_UCATS:
         logger.info('Connecting to Valco valve bus')
         self.valco_bus = valco.Valco_Valve_Commands(port=devices['valco'].get('port'))
         self.gsvs = {
-            ch['name']: valco.GSV(ch['gsv_address'], ser=self.valco_bus.ser)
+            ch['name']: valco.GSV(
+                ch['gsv_address'], ser=self.valco_bus.ser, inverted=ch.get('gsv_inverted', False))
             for ch in self.config['gc_channels']
         }
 
@@ -358,8 +360,9 @@ class Instrument_UCATS:
         if self.cal_ssv is not None:
             row['ssv_cal_pos'] = self.cal_ssv.cp(blocking=False)
 
-        for name, pos in self.valves_cp(blocking=False).items():
-            row[f'gsv_{name}'] = {'A': 'inject', 'B': 'load'}.get(pos, pos)
+        self.valves_cp(blocking=False)     # refreshes each gsv's cached .pos
+        for name, gsv in self.gsvs.items():
+            row[f'gsv_{name}'] = gsv.pos_txt()     # accounts for ch3's inverted wiring (see config.yaml)
 
         if self.omega_zone_adds:
             self.omegas.scan(list(self.omega_zone_adds.values()))
@@ -370,6 +373,7 @@ class Instrument_UCATS:
             row[f'ecdA_{name}'] = ch.last_mean()
 
         row.update(self.adr.data)      # flight mode's 'ssv' solenoid readback lands here
+        row['heartbeat'] = self.heartbeat_state
 
         return row
 
@@ -400,12 +404,46 @@ class Instrument_UCATS:
             # GUI start/stop/start cycle must not call this twice.
             self.adr.start()
             self._adr_started = True
+        self._init_electrometers()
         self.scheduler.add_task(
             delay=0, interval=1.0, function=self.gc_channels.poll, name='poll_electrometers')
         self.scheduler.add_task(
             delay=0, interval=1.0, function=self.collect_eng, name='collect_eng')
+        self.scheduler.add_task(
+            delay=0, interval=1.0, function=self._heartbeat_pulse, name='heartbeat')
         self.scheduler.start()
         self.start_injection()
+
+    def _init_electrometers(self):
+        """ Reset + set the bias DAC for each configured electrometer,
+            mirroring flight/src/uav.sol's "Init" routine ("elec reset N" /
+            "elec bias N <value>", run via uav.tma's "Mode GC Init"). There's
+            no SOLDRV_A board here to run that autonomously (see setup.yaml's
+            chromduration note), so ucats.py does it once at start() instead.
+            This doesn't replicate uav.tma's exact double-Init/extra-ch3-
+            reset startup choreography (see setup.yaml's startup_sequence,
+            still not executed by ucats.py) -- just the reset+bias every
+            electrometer needs before it'll produce valid data at all. """
+        bias = self.setup.get('electrometer_bias', {})
+        for ch in self.config['gc_channels']:
+            add = ch['electrometer_address']
+            self.elec.send_reset(add)
+            self.elec.send_ADCresets(add)
+            if ch['name'] in bias:
+                self.elec.change_dac(add, bias[ch['name']])
+
+    def _heartbeat_pulse(self):
+        """ ER-2 aircraft-interface watchdog: pulse the heartbeat dig line
+            high for 500ms once per second (flight/src/uav.tma's
+            FailBoard_Toggle partition -- "added for ER-2, 200221"; see
+            config.yaml's devices.adr2000.dig.heartbeat). Runs on its own
+            thread (scheduler.py dispatches each task separately), so the
+            sleep here doesn't block collect_eng/poll_electrometers. """
+        self.adr.job.put(('heartbeat', 'high'))
+        self.heartbeat_state = True
+        sleep(0.5)
+        self.adr.job.put(('heartbeat', 'low'))
+        self.heartbeat_state = False
 
     def shutdown(self):
         logger.info('Shutting down UCATS acquisition')

@@ -49,6 +49,19 @@ injection_ratio:
   air_injections: 4        # NUMAIRINJ in uav.tma -- changed from 7 in the flight-2016 tree
   cal_injections: 1        # NUMCALINJ in uav.tma -- unchanged
 
+# Electrometer bias DAC setpoint per channel (smart.py's change_dac()),
+# applied once at ucats.py's start() via _init_electrometers(). Confirmed
+# from uav.slp's "Proxy elecCH1/elecCH2/elecCH3" blocks ("elec bias N
+# <value>"), cross-checked against which lettered stage each proxy actually
+# uses in uav.sol's "Init" routine (elecCH1: oioooo, elecCH2: oooioo,
+# elecCH3: oooooj -- 'o' = "elec bias NULL" = no-op). Note ch3's Proxy table
+# also defines an 'i' stage (bias 80) that the Init routine never actually
+# references (only 'j', bias 10) -- confirmed unused, not ported.
+electrometer_bias:
+  ch1: 100    # uav.slp elecCH1 'i': elec bias 1 100
+  ch2: 10     # uav.slp elecCH2 'i': elec bias 2 10
+  ch3: 10     # uav.slp elecCH3 'j': elec bias 3 10 (the 'i'=80 stage is unused, see above)
+
 # State initialize in uav.tma -- startup sequence run once at boot, each
 # entry's delay is seconds before that step fires. Changed from flight-2016:
 # lower startup flow setpoints, an added electrometer-reset step for the new

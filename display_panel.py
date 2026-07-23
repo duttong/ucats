@@ -19,6 +19,26 @@ from PyQt5.QtCore import Qt
 
 logger = logging.getLogger(__name__)
 
+
+class HeartbeatIndicator(QLabel):
+    """ Small circular watchdog light, styled after ucats-b/display_panel.py's
+        PilotIndicator. Toggles color between ticks of ucats.py's
+        _heartbeat_pulse() (the ER-2 aircraft-interface watchdog line --
+        see config.yaml's devices.adr2000.dig.heartbeat), so a color that's
+        stuck (not alternating) on the running instrument means that 1 Hz
+        task has stalled or acquisition isn't running. """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(20, 20)
+        self.setAutoFillBackground(True)
+        self.update_indicator(False)
+
+    def update_indicator(self, value):
+        color = 'LightSkyBlue' if value else 'yellow'
+        self.setStyleSheet(f'background-color: {color}; border: 1px solid black; border-radius: 10px;')
+
+
 # Instrument-wide readouts, not tied to one GC channel -- shown above the
 # per-channel block below. (eng_row() key, display label) -- see ucats.py's
 # Instrument_UCATS.eng_row()
@@ -80,6 +100,8 @@ class DisplayPanel(QWidget):
         self.time_label = QLabel()
         self.update_time()
         top_layout.addWidget(self.time_label, alignment=Qt.AlignLeft)
+        self.heartbeat_indicator = HeartbeatIndicator(self)
+        top_layout.addWidget(self.heartbeat_indicator, alignment=Qt.AlignRight)
         layout.addLayout(top_layout)
 
         general_grid = QGridLayout()
@@ -185,6 +207,9 @@ class DisplayPanel(QWidget):
             value = row[key]
             text = f'{value:.2f}' if isinstance(value, float) else str(value)
             label.setText(text)
+
+        if 'heartbeat' in row:
+            self.heartbeat_indicator.update_indicator(row['heartbeat'])
 
     def _style_mode_button(self):
         cal = self.cal_mode_button.isChecked()

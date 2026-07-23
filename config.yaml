@@ -59,17 +59,39 @@ devices:
     # flight/src/Makefile -- not the older flight/src/digital_230301.tmc
     # backup alongside it, despite its filename, which is dated 2022-05-11
     # and matches the flight-2016 addresses instead). All three moved from
-    # board 0 to board 1 compared to the flight-2016 tree.
+    # board 0 to board 1 compared to the flight-2016 tree. sampIN/sampOUT/
+    # ssv/pump/nitrogen are also independently cross-confirmed by
+    # flight/src/uav.sol's own "Solenoid <name> <addr> <addr> <default>"
+    # header table (e.g. "Solenoid pump 112 12 0", "Solenoid N2 105 05 0" --
+    # the plain 2-digit number in each row matches digital.tmc's address).
     #
     # ssv is the flight-mode air/cal solenoid (digital.tmc: "Solenoid
     # control used in place of SSV", board 1 channel 4) -- used instead of
     # the lab's external Valco SSV (see ssv.cal_add below) whenever mode:
     # flight is set above. Polarity (which state is air vs cal) is a
     # placeholder -- TODO: confirm against real hardware.
+    #
+    # pump/nitrogen: confirmed addresses (digital.tmc's PumpSwitch/N2_IN),
+    # added so they're reachable for manual testing (e.g.
+    # instrument.adr.job.put(('pump', 'high'))) -- setup.yaml's
+    # startup_sequence names pump_off/nitrogen_open actions but nothing in
+    # ucats.py executes that sequence yet (TODO), so these aren't driven
+    # automatically. Polarity (which state is on/open) unconfirmed -- TODO.
+    #
+    # heartbeat: confirmed digital.tmc's "FailDummy", board 0 channel 3.
+    # uav.tma's FailBoard_Toggle partition toggles this line high for 500ms
+    # once per second ("Toggle the fail board ... added for ER-2, 200221")
+    # -- an aircraft-interface watchdog signal, not part of GC sequencing.
+    # Driven by Instrument_UCATS's own 1 Hz task (see ucats.py's start()/
+    # _heartbeat_pulse()), since there's no SOLDRV_A board here to run it
+    # autonomously.
     dig:
       sampIN: [1, 6, out]     # confirmed: digital.tmc SLoopIN, board 1 channel 6 (address 16)
       sampOUT: [1, 7, out]    # confirmed: digital.tmc SLoopOUT, board 1 channel 7 (address 17)
       ssv: [1, 4, out]        # confirmed: digital.tmc "ssv" bit, board 1 channel 4 (address 14)
+      heartbeat: [0, 3, out]  # confirmed: digital.tmc "FailDummy", board 0 channel 3 (address 03)
+      pump: [1, 2, out]       # confirmed: digital.tmc PumpSwitch, board 1 channel 2 (address 12)
+      nitrogen: [0, 5, out]   # confirmed: digital.tmc N2_IN, board 0 channel 5 (address 05)
     a2d: {}
     # names main_ch1/main_ch2/main_ch3/backflush_ch1/backflush_ch2/backflush_ch3/
     # bfpres_ch1/bfpres_ch2 match setup.yaml's flows/aux_pressures keys and
@@ -117,6 +139,15 @@ devices:
 # (int.tmc's own header comments agree, but the call sites are the
 # authoritative binding). No CO peak exists anywhere in flight/src/ --
 # ch1 integrates only CH4.
+#
+# gsv_inverted (ch3 only): CONFIRMED real plumbing difference, not a typo --
+# flight/src/uav.cmd's command grammar has a separate &GSVVALVEPOS_Inv rule
+# used only for "gsv channel 3": Inject maps to Valco position B and Load to
+# position A, backwards from ch1/ch2 (&GSVVALVEPOS: Inject=A, Load=B).
+# drivers/valve/valco.c's switch_valve() maps position 1/2 -> GOA/GOB
+# identically for every valve ID, so this is channel-3-specific hardware
+# wiring, not a driver quirk. valco.py's GSV(inverted=True) compensates so
+# ucats.py can call .inject()/.load() uniformly across channels.
 gc_channels:
   - name: ch1
     electrometer_address: 0
@@ -130,6 +161,7 @@ gc_channels:
     electrometer_address: 2
     gsv_address: 5
     molecules: [n2o, sf6]
+    gsv_inverted: true
 
 ssv:
   # calibration-mode only (mode: calibration above) -- the external
