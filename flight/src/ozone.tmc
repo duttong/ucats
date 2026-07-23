@@ -1,0 +1,112 @@
+/* added second ozone instrument.. ozonex  GSD 121116 */
+%{
+#include <sys/types.h>
+#include "o3ser.h"
+pid_t o3_proxy = 0;
+pid_t o3x_proxy = 0;
+
+O3struct ozone;
+O3Xstruct ozonex;
+%}
+
+/* This section for plotting ozone data. */
+state ( OzoneInc, OzoneTog );
+validate OzoneInc;
+
+TM 1 Hz ULONG O3count;
+O3count++;
+
+depending on ( 1 Hz ) {
+	depending on ( OzoneTog ) { validate OzoneInc; }
+
+	if ( O3count >= 60*60/10 ) { 
+		O3count = 0;
+		validate OzoneTog;
+	}
+}
+
+TM "proxy" o3_proxy 10;
+TM "Receive" ozone 0;
+
+/* 11 is also used in vaisala.tmc */
+TM "proxy" o3x_proxy 11;
+TM "Receive" ozonex 0;
+
+TM typedef float o3float { text "%6.1f"; }
+TM typedef float o3float2 { text "%6.3f"; }
+TM typedef long o3lint { text "%5d"; }
+TM typedef short o3int { text "%2d"; }
+TM typedef short o3int4 { text "%4d"; }
+
+/* original ozone instrument.  10 second data */
+TM 1/8 Hz o3float o3; 
+TM 1/8 Hz o3float o3temp; 
+TM 1/8 Hz o3float o3pres; 
+TM 1/8 Hz o3float2 o3lmpv; 
+TM 1/8 Hz o3float2 o3lmpsd; 
+TM 1/8 Hz o3int o3yy; 
+TM 1/8 Hz o3int o3mm; 
+TM 1/8 Hz o3int o3dd; 
+TM 1/8 Hz o3int o3hh;
+TM 1/8 Hz o3int o3min;
+TM 1/8 Hz o3int o3ss; 
+
+/* second instrument, 2 second data */
+TM 1 Hz o3float o3x; 
+TM 1 Hz o3float o3xtemp; 
+TM 1 Hz o3float o3xpres; 
+TM 1 Hz o3int4 o3xflowa; 
+TM 1 Hz o3int4 o3xflowb; 
+TM 1 Hz o3int4 o3xyy; 
+TM 1 Hz o3int o3xmm; 
+TM 1 Hz o3int o3xdd; 
+TM 1 Hz o3int o3xhh;
+TM 1 Hz o3int o3xmin;
+TM 1 Hz o3int o3xss; 
+
+TM 1 Hz o3float o3best;
+TM 1 Hz o3float o3xbest;
+
+/* calibrations; changed 8/6/2016 again on 10/28/2016*/
+depending on ( o3 ) {
+	o3best = (o3 * o3pres)/(o3pres*.9996 + 7.9);
+}
+depending on ( o3x ) {
+	o3xbest = 0.970*((o3x-3.0) * o3xpres)/(o3xpres*1.1471 - 244.54) ;
+}
+
+
+Group o3group ( o3, o3temp, o3pres, o3lmpv, o3lmpsd ) {
+    o3 =		ozone.o3;
+    o3temp =	ozone.t;
+    o3pres =	ozone.p;
+    o3lmpv =	ozone.lamp_v;
+    o3lmpsd =	ozone.lamp_sd;
+    o3yy =		ozone.date.year;
+    o3mm =		ozone.date.mon;
+    o3dd =		ozone.date.day;
+    o3hh =		ozone.time.hh;
+    o3min =		ozone.time.min;
+    o3ss =		ozone.time.sec;
+}
+
+Group o3xgroup ( o3x, o3xtemp, o3xpres, o3xflowa, o3xflowb ) {
+    o3x =		ozonex.o3;
+    o3xtemp =	ozonex.t;
+    o3xpres =	ozonex.p;
+    o3xflowa =	ozonex.flowa;
+    o3xflowb =	ozonex.flowb;
+    o3xyy =		ozonex.date.year;
+    o3xmm =		ozonex.date.mon;
+    o3xdd =		ozonex.date.day;
+    o3xhh =		ozonex.time.hh;
+    o3xmin =	ozonex.time.min;
+    o3xss =		ozonex.time.sec;
+}
+	
+depending on ( 1/8 Hz ) {
+	if (o3_proxy != 0)	Trigger ( o3_proxy );
+}
+depending on ( 1 Hz ) {
+	if (o3x_proxy != 0)	 Trigger ( o3x_proxy );
+}

@@ -1,0 +1,45 @@
+# UAV startup script
+# First we startup the standard housekeeping
+
+# UAV hardware configuration (the driver name is in perens)
+# ser1 == electrometers (smart)
+# ser2 == Omegas (iseries)
+# ser3 == valves (valco)
+# ser4 == adr2000 (adr2000)
+# ser5 == OzoneX (o3xser)
+# ser6 == Vaisala (vaisala)
+# ser7 == Ozone (o3ser)
+# ser8 == Maycomm TDL (maycomm)
+
+BIN=/home/uav/bin
+
+Launch memo            memo -e uav.log -y -v
+
+Launch Cmdctrl         cmdctrl -m -v -c1
+
+Launch "-g dg"         uavcol -c1 -l &&
+                       pick_file -q
+
+Launch -               lgr -v -N 200 -z30000 -c1 `lfctr -O`
+
+Launch "-g adr2000"	   $BIN/adr2000 -p /dev/ser4
+
+# soldrv must follow collection, preceed command server
+Launch -               soldrv -v -c1 uav.sft
+
+Launch db              bfr -v -c1
+
+Launch cmdinterp		uavsrvr -v -c1
+
+#Launch "-g o3ser"		$BIN/o3ser -p /dev/ser7
+#Launch "-g o3xser"		$BIN/o3xser -p /dev/ser5
+#Launch "-g vaisala"	$BIN/vaisala -p /dev/ser6
+Launch "-g iseries"		$BIN/iseries -p /dev/ser2
+Launch "-g valco"		$BIN/valco -p /dev/ser3
+Launch "-g smart"		$BIN/smart -p /dev/ser1
+#Launch "-g maycomm"	$BIN/maycomm -p /dev/ser8
+Launch "-g nasdat"		$BIN/nasdat -i 10.11.96.131 -p 7074
+Launch "-g kuband"		$BIN/kuband -i 10.16.101.148 -p 7093
+
+# Algorithms must follow bfr, cmdsrvr
+#Launch -               dc8algo -v -c1

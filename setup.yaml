@@ -1,0 +1,173 @@
+# UCATS run parameters -- edited each run/deployment. Hardware addresses and
+# paths that rarely change live in config.yaml instead.
+#
+# Most values below are ported directly from the current legacy QNX state
+# machine in flight/src/uav.tma (the "initialize"/"Warmup"/"AIRnext"/
+# "CALnext" states) plus flight/src/uav.sol, the SOLDRV_A solenoid-driver
+# board's compiled timing program, and flight/src/uav.slp (the numeric
+# setpoint for each lettered stage uav.sol references). This flight/ tree
+# is UCATS's current 3-channel-ECD-GC source (VERSION 3.1, 2023-03-01); the
+# older 2-channel tree these values used to come from is now flight-2016/.
+#
+# uav.sol defines several chromatogram routines (70s/140s/280s variants).
+# The one actually run in flight is mode 2 ("RUN mode"), which selects mode
+# 22: routine chrom140s_A immediately followed by chrom140s_B, repeating.
+# chrom70s_A (mode 3, "Lab mode 70s chroms") and the chrom280s_* routines
+# are lab-only/unused and not modeled here.
+#
+# uav.sol format: each row is a solenoid/valve's state per second, grouped
+# in 5-char blocks separated by ':' (resolution = 1/1, i.e. 1 char = 1
+# second); chrom140s_A and chrom140s_B are each 15 groups x 5 chars = 75
+# characters = 75 real seconds, despite the "140s" name -- confirmed by
+# character count, and matches the actual per-block chromatogram length.
+#
+# Channel behavior differs by column length: ch2 and ch3 each complete a
+# full inject/backflush cycle within a single 75s block (gsvCH2/gsvCH3 run
+# the same Inject->Load pattern in both chrom140s_A and chrom140s_B), so
+# each block is a self-contained, independent chromatogram for them. ch1's
+# column takes the full 150s (both blocks) to separate: gsvCH1 only injects
+# during chrom140s_A (Inject at t=0, Load at t=39) and stays in Load for
+# the entire following chrom140s_B (no injection at all that block) -- so
+# ch1's chromatogram spans two consecutive ITX files (one from an "A"
+# cycle, one from the following "B" cycle) that need concatenating
+# downstream into its real 150s trace. ucats.py writes one ITX file per 75s
+# cycle for all three channels together (chromduration below), and
+# alternates an internal self.gsv_phase between 'A'/'B' each cycle to track
+# which half of ch1's program applies -- see gsv_phase_channels/flows/
+# aux_pressures below for the phase-dependent entries. This alternation is
+# independent of the air:cal injection_ratio counters (uav.tma's
+# "Injecting1"/"Injecting2" triggers, which validate SSVtable's air/cal
+# pick once per 75s block, are a separate concern from the solenoid
+# driver's own free-running A/B program).
+
+chromduration: 75      # seconds per ITX file/cycle -- confirmed: flight/src/uav.sol chrom140s_A and chrom140s_B are each 75 real seconds (15 groups x 5 chars @ 1s/char)
+
+# UCATS doesn't run a fixed SSV port sequence like FE3; uav.tma's SSVtable
+# state alternates "Sample Air" and "Sample Cal" using a simple counter
+# ratio, evaluated once per 75s cycle (see chromduration note above).
+injection_ratio:
+  air_injections: 4        # NUMAIRINJ in uav.tma -- changed from 7 in the flight-2016 tree
+  cal_injections: 1        # NUMCALINJ in uav.tma -- unchanged
+
+# State initialize in uav.tma -- startup sequence run once at boot, each
+# entry's delay is seconds before that step fires. Changed from flight-2016:
+# lower startup flow setpoints, an added electrometer-reset step for the new
+# ch3 (elec address 2), and no more inline "sample air" step -- air/cal
+# selection now happens later, driven by a new (currently unported)
+# altitude-triggered pump on/off + warmup state machine in uav.tma
+# (Warmup -> AltCheck -> InletPumpOn/CalInjections -> ... -> SSVtableInit)
+# that isn't reflected below or implemented in ucats.py yet.
+startup_sequence:
+  - {delay: 0, action: telemetry_start}
+  - {delay: 0, action: pump_off}
+  - {delay: 2, action: nitrogen_open}
+  - {delay: 1, action: flow_main_ch1, setpoint: 25}       # was 50 in flight-2016
+  - {delay: 1, action: flow_backflush_ch1, setpoint: 20}  # was 30 in flight-2016
+  - {delay: 2, action: mode_gc_init}
+  - {delay: 25, action: elec_reset_ch3}   # new: "elec reset 2" in uav.tma -- resets ch3's electrometer (address 2)
+  - {delay: 10, action: mode_gc_init}
+
+# Warmup state in uav.tma: both ECDs must reach these temps (C) before the
+# GC is considered ready for injections. Confirmed quirk, ported as-is
+# rather than "fixed": the Warmup check is
+#   if (( CH2_ECD/10 > HOT_ECD2 ) || ( CH3_ECD/10 > HOT_ECD1 )) Validate AltCheck;
+# -- an OR, not AND (ready once EITHER channel is hot enough), and it does
+# not check CH1_ECD at all. The HOT_ECD1/HOT_ECD2 macro names are legacy
+# from the 2-channel tree and no longer line up with channel numbers --
+# HOT_ECD1 now gates CH3_ECD, not CH1_ECD.
+detector_ready:
+  ch2_ecd_min_temp_c: 345   # HOT_ECD2, checked against CH2_ECD -- was 340 in flight-2016
+  ch3_ecd_min_temp_c: 345   # HOT_ECD1, checked against CH3_ECD -- was 350 in flight-2016 (then gating CH1_ECD)
+
+# CheckCarrier/SetECDsCold states in uav.tma: N2 carrier gas failsafe.
+# CONFIRMED DISABLED in the current uav.tma: the whole partition is
+# commented out ("Commented out 200305"), and N2fail itself was changed to
+# 0 psi -- unreachable anyway, since the check also requires presL_N2 > 0.
+# Values below are kept for reference (e.g. if this is ever re-enabled) but
+# are not active in flight software and aren't consumed by ucats.py.
+carrier_gas:
+  n2_fail_psi: 0                  # N2fail -- was 10 in flight-2016; now unreachable/disabled
+  n2_fail_check_interval_s: 10    # CheckCarrier polled every +10s (partition disabled)
+  n2_fail_count_threshold: 10     # MAXN2LOWCNTS consecutive low readings before tripping cold
+  ecd_cold_setpoint_c: 10         # Omega SP1 target for both ECDs when N2 fails (partition disabled)
+
+# State initialize / implicit pump control in uav.tma. Changed substantially
+# from flight-2016: thresholds dropped from ~1000/950 mbar to 450/400 mbar,
+# and pump on/off is now driven by a new altitude-triggered state machine
+# (AltCheck/InletPumpOn/InletPumpOff/PumpON_PressCheck in uav.tma, gated on
+# pres_PUMP OR pres_extern) that isn't ported to ucats.py yet -- these two
+# values are the thresholds that machine uses, not (yet) live logic here.
+pump:
+  pump_off_mbar: 450    # PumpOFF -- was 1000 in flight-2016
+  pump_on_mbar: 400     # PumpON -- was 950 in flight-2016
+
+# GSV (Valco gas sample valve) Inject->Load switch time per channel, for
+# channels whose program is identical in both chrom140s_A and chrom140s_B
+# (see the chromduration note above for why ch1 isn't here -- it's phase-
+# dependent, see gsv_phase_channels below instead). Confirmed from uav.sol's
+# gsvCH2/gsvCH3 rows (I -> L transition, seconds into the 75s cycle; same
+# transition time in both blocks). Both values differ from flight-2016's
+# chrom70s_A-derived numbers (was ch2:33, ch3:18) since they're now read
+# from the routine actually used in flight.
+backflush_times:
+  ch2: 40
+  ch3: 20
+
+# ch1's GSV program alternates by cycle phase (see chromduration note
+# above): on an 'A' cycle it injects at t=0 like every other channel and
+# switches to Load at load_at; on a 'B' cycle it never injects at all --
+# it's already in Load for the whole block, continuing separation from the
+# prior 'A' cycle. ucats.py's inject_all_channels()/_schedule_injection_timing()
+# read this instead of backflush_times for any channel name listed here.
+# Confirmed from uav.sol: chrom140s_A's gsvCH1 (Inject@0, Load@39) vs.
+# chrom140s_B's gsvCH1 (Load for the full 75s, no Inject transition at all).
+gsv_phase_channels:
+  ch1:
+    A: {inject: true, load_at: 39}
+    B: {inject: false}
+
+# solenoids: name -> list of [time_in_chromatogram_sec, state] events, state 0/1
+# names must match a key under devices.adr2000.dig in config.yaml.
+# Confirmed from uav.sol's sampIN/sampOUT rows (the sample-loop solenoids,
+# same role as FE3's samp_loop_in/samp_loop_out in setup.py) -- identical
+# timing in chrom140s_A and chrom140s_B, so one schedule covers both cycles.
+solenoids:
+  sampOUT: [[1, 1], [73, 0]]
+  sampIN: [[42, 1], [73, 0]]
+
+# Flow programs: channel -> list of [time_in_chromatogram_sec, setpoint].
+# uav.sol's mainCH1/mainCH2/mainCH3 (main column flow) and bfCH1/bfCH2/bfCH3
+# (backflush flow) rows step through lettered stages (a/b/c/...) at the
+# confirmed times below; flight/src/uav.slp gives the real numeric setpoint
+# for each letter. Stages with an unchanged value from the previous one are
+# collapsed -- only real value changes are listed. ch2/ch3 run the same
+# program in both chrom140s_A and chrom140s_B, so a flat list covers both;
+# ch1's program differs by phase (see chromduration/gsv_phase_channels
+# notes above), so it's split into A/B sub-schedules instead -- ucats.py
+# picks whichever matches self.gsv_phase for the current cycle.
+flows:
+  main:
+    ch1:
+      A: [[0, 95], [4, 70]]    # uav.sol chrom140s_A mainCH1 a->b @ t=4
+      B: [[0, 70]]             # uav.sol chrom140s_B mainCH1 stays 'b'(70) the whole block
+    ch2: [[0, 82], [3, 70]]    # uav.sol mainCH2 a->b @ t=3, same in both blocks
+    ch3: [[0, 70], [4, 45]]    # uav.sol mainCH3 a->b @ t=4, same in both blocks
+  backflush:
+    ch1:
+      A: [[0, 10], [40, 40]]   # uav.sol chrom140s_A bfCH1 a->b @ t=40
+      B: [[0, 40], [62, 45]]   # uav.sol chrom140s_B bfCH1 continues at 'b'(40), ->c(45) @ t=62
+    ch2: [[0, 20], [41, 100]]  # uav.sol bfCH2 a->b @ t=41, same in both blocks
+    ch3: [[0, 10], [21, 40]]   # uav.sol bfCH3 a->b @ t=21, same in both blocks
+
+# aux_pressures: backflush pressure setpoint per channel (uav.sol's
+# bfprsCH1/bfprsCH2), same [time_in_chromatogram_sec, setpoint] format
+# (phase-split for ch1, flat for ch2, same reasoning as flows above), values
+# from uav.slp's "Press channel N Setpoint" entries. No ch3 entry: confirmed
+# -- uav.sol's chrom140s_A/_B have no bfprsCH3 row at all, and analog.tmc's
+# pres_BP3_sp DAC line is commented out (no channel assigned yet, see
+# config.yaml).
+aux_pressures:
+  ch1:
+    A: [[0, 25], [40, 65]]    # uav.sol chrom140s_A bfprsCH1 a->b @ t=40
+    B: [[0, 65], [61, 90]]    # uav.sol chrom140s_B bfprsCH1 continues at 'b'(65), ->c(90) @ t=61
+  ch2: [[0, 25], [41, 65]]    # uav.sol bfprsCH2 a->b @ t=41, same in both blocks

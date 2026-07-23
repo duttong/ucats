@@ -1,0 +1,53 @@
+TM typedef float MixRatio { text "%6.1f"; }
+
+MixRatio MR_CH4; Invalidate MR_CH4;
+MixRatio MR_N2O; Invalidate MR_N2O;
+MixRatio MR_SF6; Invalidate MR_SF6;
+
+depending on ( 1 Hz ) { 
+	MR_N2O = MRres( 0 );	/* input peak number  */
+	Validate MR_N2O;
+}
+
+depending on ( 1 Hz ) { 
+	MR_CH4 = MRres( 1 );	/* input peak number  */
+	Validate MR_CH4;
+}
+
+depending on ( 1 Hz ) { 
+	MR_SF6 = MRres( 2 );	/* input peak number  */
+	Validate MR_SF6;
+}
+
+
+/* variable to indicate when the second half of the 2-min
+   chrom has started 
+*/
+int secondhalf;
+
+depending on ( NotInjecting once ) { secondhalf = 0; }
+depending on ( Injecting1 ) { secondhalf = 0; }
+depending on ( Injecting2 ) { secondhalf = 1; }
+
+
+/* code in resp variables */
+depending on ( GC_Ctr_CH1 ) {
+
+	depending on ( Injection ) {
+	
+		if (( GC_Ctr_CH1 != ECDOFFLINE ) && ( secondhalf )) {
+			integrate( 0, GC_Ctr_CH1, CH4int, CHROMtime, old_ssv2min );
+		}
+
+		if ( GC_Ctr_CH2 != ECDOFFLINE ) {
+			integrate( 0, GC_Ctr_CH2, N2Oint, CHROMtime, old_ssv1min );
+		}
+
+		if ( GC_Ctr_CH2 != ECDOFFLINE ) {
+			integrate( 0, GC_Ctr_CH2, SF6int, CHROMtime, old_ssv1min );
+		}
+
+	}
+
+}
+

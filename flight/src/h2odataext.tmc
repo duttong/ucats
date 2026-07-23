@@ -1,0 +1,85 @@
+%{ /* edf2ext.awk reading h2odata.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr h2oout;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	h2oout = edf_ss_open( "h2oout", 18 );
+	ss_set_column(h2oout, 0, "%14.11lt", "Time");
+	ss_set_column(h2oout, 1, "%12.1f", "tdlrec");
+	ss_set_column(h2oout, 2, "%12.2f", "tdl_time");
+	ss_set_column(h2oout, 3, "%12.2f", "tdl_shortH2O");
+	ss_set_column(h2oout, 4, "%12.2f", "tdl_H2OB");
+	ss_set_column(h2oout, 5, "%12.2f", "tdl_longH2O");
+	ss_set_column(h2oout, 6, "%12.2f", "tdl_H2OCD");
+	ss_set_column(h2oout, 7, "%12.2f", "tdl_p");
+	ss_set_column(h2oout, 8, "%12.2f", "tdl_t");
+	ss_set_column(h2oout, 9, "%12.2f", "tdl_elecT");
+	ss_set_column(h2oout, 10, "%12.1f", "tdl_amp");
+	ss_set_column(h2oout, 11, "%12.1f", "tdl_pow");
+	ss_set_column(h2oout, 12, "%12.1f", "tdl_pos");
+	ss_set_column(h2oout, 13, "%12.1f", "tdl_zer");
+	ss_set_column(h2oout, 14, "%12.1f", "tdl_posB");
+	ss_set_column(h2oout, 15, "%12.1f", "vaiT");
+	ss_set_column(h2oout, 16, "%12.1f", "vaiRH");
+	ss_set_column(h2oout, 17, "%12.2f", "tdl_best");
+  }
+  void terminate(void) {
+	ss_close(h2oout);
+  }
+%}
+{
+  ss_insert_value(h2oout, dtime()+ext_delta, 0);
+  ss_set(h2oout, 1, convert( tdlrec));
+  ss_set(h2oout, 2, convert( tdl_time));
+  ss_set(h2oout, 3, convert( tdl_shortH2O));
+  ss_set(h2oout, 4, convert( tdl_H2OB));
+  ss_set(h2oout, 5, convert( tdl_longH2O));
+  ss_set(h2oout, 6, convert( tdl_H2OCD));
+  ss_set(h2oout, 7, convert( tdl_p));
+  ss_set(h2oout, 8, convert( tdl_t));
+  ss_set(h2oout, 9, convert( tdl_elecT));
+  ss_set(h2oout, 10, convert( tdl_amp));
+  ss_set(h2oout, 11, convert( tdl_pow));
+  ss_set(h2oout, 12, convert( tdl_pos));
+  ss_set(h2oout, 13, convert( tdl_zer));
+  ss_set(h2oout, 14, convert( tdl_posB));
+  ss_set(h2oout, 15, convert( vaiT));
+  ss_set(h2oout, 16, convert( vaiRH));
+  ss_set(h2oout, 17, convert( tdl_best));
+}

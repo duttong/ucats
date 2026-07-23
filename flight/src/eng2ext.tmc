@@ -1,0 +1,101 @@
+%{ /* edf2ext.awk reading eng2.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr eng2;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	eng2 = edf_ss_open( "eng2", 26 );
+	ss_set_column(eng2, 0, "%14.11lt", "Time");
+	ss_set_column(eng2, 1, "%12.1f", "temp_pump");
+	ss_set_column(eng2, 2, "%12.1f", "temp_SL2");
+	ss_set_column(eng2, 3, "%12.1f", "pres_BP2");
+	ss_set_column(eng2, 4, "%12.1f", "pres_BP3");
+	ss_set_column(eng2, 5, "%12.1f", "pres_ECD1");
+	ss_set_column(eng2, 6, "%12.1f", "temp_amb");
+	ss_set_column(eng2, 7, "%12.1f", "pres_extern");
+	ss_set_column(eng2, 8, "%12.1f", "volt_1234");
+	ss_set_column(eng2, 9, "%12.1f", "presL_dope");
+	ss_set_column(eng2, 10, "%12.1f", "presL_cal");
+	ss_set_column(eng2, 11, "%12.1f", "presL_N2");
+	ss_set_column(eng2, 12, "%12.1f", "presH_123");
+	ss_set_column(eng2, 13, "%12.2f", "volt_5");
+	ss_set_column(eng2, 14, "%12.2f", "volt_15");
+	ss_set_column(eng2, 15, "%12.2f", "volt_28");
+	ss_set_column(eng2, 16, "%12.1f", "CH1_ECD");
+	ss_set_column(eng2, 17, "%12.1f", "CH1_Col");
+	ss_set_column(eng2, 18, "%12.1f", "CH2_ECD");
+	ss_set_column(eng2, 19, "%12.1f", "CH2_Col");
+	ss_set_column(eng2, 20, "%12.1f", "CH3_ECD");
+	ss_set_column(eng2, 21, "%12.1f", "CH3_Col");
+	ss_set_column(eng2, 22, "%12.1f", "CH3_Post");
+	ss_set_column(eng2, 23, "%8.0f", "GCstate");
+	ss_set_column(eng2, 24, "%8.0f", "ssv");
+	ss_set_column(eng2, 25, "%8.0f", "valv_calSSV");
+  }
+  void terminate(void) {
+	ss_close(eng2);
+  }
+%}
+{
+  ss_insert_value(eng2, dtime()+ext_delta, 0);
+  ss_set(eng2, 1, convert( temp_pump));
+  ss_set(eng2, 2, convert( temp_SL2));
+  ss_set(eng2, 3, convert( pres_BP2));
+  ss_set(eng2, 4, convert( pres_BP3));
+  ss_set(eng2, 5, convert( pres_ECD1));
+  ss_set(eng2, 6, convert( temp_amb));
+  ss_set(eng2, 7, convert( pres_extern));
+  ss_set(eng2, 8, convert( volt_1234));
+  ss_set(eng2, 9, convert( presL_dope));
+  ss_set(eng2, 10, convert( presL_cal));
+  ss_set(eng2, 11, convert( presL_N2));
+  ss_set(eng2, 12, convert( presH_123));
+  ss_set(eng2, 13, convert( volt_5));
+  ss_set(eng2, 14, convert( volt_15));
+  ss_set(eng2, 15, convert( volt_28));
+  ss_set(eng2, 16, convert( CH1_ECD));
+  ss_set(eng2, 17, convert( CH1_Col));
+  ss_set(eng2, 18, convert( CH2_ECD));
+  ss_set(eng2, 19, convert( CH2_Col));
+  ss_set(eng2, 20, convert( CH3_ECD));
+  ss_set(eng2, 21, convert( CH3_Col));
+  ss_set(eng2, 22, convert( CH3_Post));
+  ss_set(eng2, 23, convert( GCstate));
+  ss_set(eng2, 24, convert( ssv));
+  ss_set(eng2, 25, convert( valv_calSSV));
+}

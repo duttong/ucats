@@ -1,0 +1,16 @@
+<package> edfoui
+<unsort>
+<BLANK>
+Spreadsheet o3out, 13 columns:
+  o3out        [ 1] = o3yy
+  o3out        [ 2] = o3mm
+  o3out        [ 3] = o3dd
+  o3out        [ 4] = o3hh
+  o3out        [ 5] = o3min
+  o3out        [ 6] = o3ss
+  o3out        [ 7] = o3
+  o3out        [ 8] = o3temp
+  o3out        [ 9] = o3pres
+  o3out        [10] = o3best
+  o3out        [11] = o3lmpv
+  o3out        [12] = o3lmpsd

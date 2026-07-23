@@ -1,0 +1,142 @@
+# UCATS hardware/paths configuration.  Rarely edited -- run parameters
+# (chromatogram duration, sequences, timing) live in setup.yaml instead.
+#
+# Addresses below marked "confirmed" come from the current QNX flight source
+# tree, flight/src/ (addresses.h, omega.tmc, digital.tmc, analog.tmc,
+# hardware.cfg -- VERSION 3.1, dated 2023-03-01). This tree replaced an
+# older 2-channel version, now kept for reference as flight-2016/. UCATS is
+# a 3-channel ECD GC: all legacy sensors (H2O, ozone, TDL) named elsewhere
+# in flight/'s C source are physically removed from the instrument and not
+# represented here. Everything marked TODO is still a placeholder.
+
+# Air/cal switching hardware differs by deployment:
+# - flight: the digital 2-position "ssv" solenoid on the ADR2000 (see
+#   devices.adr2000.dig.ssv) -- this is what's connected on the aircraft.
+# - calibration: an external multi-position Valco SSV (see ssv.cal_add
+#   below) -- only physically hooked up in the lab for GC calibration.
+# ucats.py picks which one to drive based on this setting; a future GUI
+# calibration mode will be able to switch it at runtime.
+mode: flight    # flight | calibration
+
+paths:
+  itx_dir: data/chroms
+  eng_dir: data/eng
+  log_dir: data/logs
+
+telemetry:
+  enable: true
+  config: telem-config.yaml
+
+devices:
+  valco:
+    port: null            # null = autodetect (see autodetect.py)
+  smart:
+    port: /dev/ser1        # smart.py has no autodetect support; matches drivers/smart/smart.c's default port
+  omega:
+    port: null
+    # 7 temperature zones, confirmed by name AND address in
+    # flight/src/omega.tmc ("Omega addresses -- these are the addresses
+    # programmed on the Omegas"). Only channel 3 has a post-column zone --
+    # ch1/ch2 don't (omega.tmc has no CH1_Post/CH2_Post at all, unlike the
+    # flight-2016 tree, which had a ch2_post but no ch1_post either). The
+    # old water-trap Peltier heater zone (h2o_pelt) is gone -- that sensor
+    # is physically removed from the instrument.
+    zones:
+      ch3_ecd: 1
+      ch3_col: 2
+      ch3_post: 3
+      ch2_ecd: 4
+      ch1_col: 5
+      ch2_col: 6
+      ch1_ecd: 7
+  adr2000:
+    port: null
+    # dig/a2d/dac entries: name: [board_address, channel, calib-or-state]
+    # consumed by adr2000.py's Driver.from_config().
+    #
+    # sampIN/sampOUT/ssv addresses below are confirmed against the current
+    # flight/src/digital.tmc (dated 2023-03-01, the file actually built by
+    # flight/src/Makefile -- not the older flight/src/digital_230301.tmc
+    # backup alongside it, despite its filename, which is dated 2022-05-11
+    # and matches the flight-2016 addresses instead). All three moved from
+    # board 0 to board 1 compared to the flight-2016 tree.
+    #
+    # ssv is the flight-mode air/cal solenoid (digital.tmc: "Solenoid
+    # control used in place of SSV", board 1 channel 4) -- used instead of
+    # the lab's external Valco SSV (see ssv.cal_add below) whenever mode:
+    # flight is set above. Polarity (which state is air vs cal) is a
+    # placeholder -- TODO: confirm against real hardware.
+    dig:
+      sampIN: [1, 6, out]     # confirmed: digital.tmc SLoopIN, board 1 channel 6 (address 16)
+      sampOUT: [1, 7, out]    # confirmed: digital.tmc SLoopOUT, board 1 channel 7 (address 17)
+      ssv: [1, 4, out]        # confirmed: digital.tmc "ssv" bit, board 1 channel 4 (address 14)
+    a2d: {}
+    # names main_ch1/main_ch2/main_ch3/backflush_ch1/backflush_ch2/backflush_ch3/
+    # bfpres_ch1/bfpres_ch2 match setup.yaml's flows/aux_pressures keys and
+    # are driven by ucats.py's _schedule_injection_timing(). Note there is
+    # no bfpres_ch3 -- confirmed from flight/src/analog.tmc, whose pres_BP3_sp
+    # line is commented out ("need a DAC channel still 191004"): channel 3's
+    # backflush pressure has no DAC output wired yet.
+    #
+    # calib is the [slope, intercept] polynomial ADR2000.analogout() uses to
+    # convert an engineering-units setpoint (sccm or psi, per uav.slp) to a
+    # 0-5V DAC output. Both calibrations changed from the flight-2016 tree:
+    # flow_*_sp moved from the old "SCCMsp" typedef (1V=0sccm, 5V=150sccm)
+    # to "SCCMspPN" (0V=0sccm, 5V=200sccm -- slope 5/200=0.025, intercept 0);
+    # pres_BP*_sp moved from "PSIsp" (0V=0psi, 5V=30psi) to "PSIBspPN"
+    # (0V=0psi, 5V=100psi -- slope 5/100=0.05, intercept 0). Both confirmed
+    # against the Calibration blocks in the current flight/src/analog.tmc.
+    #
+    # board/channel: analog.tmc addresses each DAC as a 2-digit number
+    # (board*10 + channel), e.g. "Address flow_M1_sp 10", "Address
+    # pres_BP1_sp 00" (the "Common 0" board hosts both backflush-pressure
+    # DACs, per analog.tmc's own comment). ADR2000's analogout() only takes
+    # chan=1 or chan=2 (2 DACs per board), so the address's last digit
+    # (0/1) is taken as a 0-indexed channel -> ADR2000's 1-indexed chan.
+    # This board/channel split is inferred from that encoding, not a literal
+    # field in the source -- worth double-checking against real hardware.
+    dac:
+      main_ch1: [1, 1, [0.025, 0]]        # analog.tmc: flow_M1_sp, Address 10 (board 1, DAC chan 1)
+      backflush_ch1: [1, 2, [0.025, 0]]   # analog.tmc: flow_BF1_sp, Address 11 (board 1, DAC chan 2)
+      main_ch2: [2, 1, [0.025, 0]]        # analog.tmc: flow_M2_sp, Address 20 (board 2, DAC chan 1)
+      backflush_ch2: [2, 2, [0.025, 0]]   # analog.tmc: flow_BF2_sp, Address 21 (board 2, DAC chan 2)
+      main_ch3: [3, 1, [0.025, 0]]        # analog.tmc: flow_M3_sp, Address 30 (board 3, DAC chan 1)
+      backflush_ch3: [3, 2, [0.025, 0]]   # analog.tmc: flow_BF3_sp, Address 31 (board 3, DAC chan 2)
+      bfpres_ch1: [0, 1, [0.05, 0]]       # analog.tmc: pres_BP1_sp, Address 00 (board 0, DAC chan 1)
+      bfpres_ch2: [0, 2, [0.05, 0]]       # analog.tmc: pres_BP2_sp, Address 01 (board 0, DAC chan 2)
+      # bfpres_ch3: TODO -- no DAC channel assigned yet, see note above
+
+# Three GC channels, confirmed against flight/src/addresses.h
+# (CH1elecADD/CH2elecADD/CH3elecADD, CH1gsvADD/CH2gsvADD/CH3gsvADD) and
+# flight/src/hardware.cfg's "smart: address: 0/1/2" (three smart
+# electrometers now scanned, was two in flight-2016). molecules is purely
+# informational (display labels; not consumed by ucats.py's hardware
+# logic), confirmed from flight/src/int.tmc's intStruct .mol names, cross-
+# checked against the integrate(..., GC_Ctr_CHn, ...) call sites in
+# intdsp.tmc/intres.tmc that bind each compound to its actual channel
+# (int.tmc's own header comments agree, but the call sites are the
+# authoritative binding). No CO peak exists anywhere in flight/src/ --
+# ch1 integrates only CH4.
+gc_channels:
+  - name: ch1
+    electrometer_address: 0
+    gsv_address: 3
+    molecules: [ch4]
+  - name: ch2
+    electrometer_address: 1
+    gsv_address: 4
+    molecules: [cfc12, cfc11]
+  - name: ch3
+    electrometer_address: 2
+    gsv_address: 5
+    molecules: [n2o, sf6]
+
+ssv:
+  # calibration-mode only (mode: calibration above) -- the external
+  # multi-position Valco SSV connected in the lab for GC calibration; not
+  # present during flight, where devices.adr2000.dig.ssv is used instead.
+  # confirmed: addresses.h only defines CALSSVADD (unchanged from
+  # flight-2016), and uav.tma's SSVtable state only ever selects "Sample
+  # Air" or "Sample Cal" (no separate flask/sample-select SSV, unlike FE3)
+  # -- one SSV does both.
+  cal_add: 0

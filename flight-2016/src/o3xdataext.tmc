@@ -1,0 +1,75 @@
+%{ /* edf2ext.awk reading o3xdata.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr o3xout;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	o3xout = edf_ss_open( "o3xout", 13 );
+	ss_set_column(o3xout, 0, "%14.11lt", "Time");
+	ss_set_column(o3xout, 1, "%12.1f", "o3xyy");
+	ss_set_column(o3xout, 2, "%12.1f", "o3xmm");
+	ss_set_column(o3xout, 3, "%12.1f", "o3xdd");
+	ss_set_column(o3xout, 4, "%12.1f", "o3xhh");
+	ss_set_column(o3xout, 5, "%12.1f", "o3xmin");
+	ss_set_column(o3xout, 6, "%12.1f", "o3xss");
+	ss_set_column(o3xout, 7, "%12.1f", "o3x");
+	ss_set_column(o3xout, 8, "%12.1f", "o3xtemp");
+	ss_set_column(o3xout, 9, "%12.1f", "o3xpres");
+	ss_set_column(o3xout, 10, "%12.1f", "o3xbest");
+	ss_set_column(o3xout, 11, "%12.3f", "o3xflowa");
+	ss_set_column(o3xout, 12, "%12.3f", "o3xflowb");
+  }
+  void terminate(void) {
+	ss_close(o3xout);
+  }
+%}
+{
+  ss_insert_value(o3xout, dtime()+ext_delta, 0);
+  ss_set(o3xout, 1, convert( o3xyy));
+  ss_set(o3xout, 2, convert( o3xmm));
+  ss_set(o3xout, 3, convert( o3xdd));
+  ss_set(o3xout, 4, convert( o3xhh));
+  ss_set(o3xout, 5, convert( o3xmin));
+  ss_set(o3xout, 6, convert( o3xss));
+  ss_set(o3xout, 7, convert( o3x));
+  ss_set(o3xout, 8, convert( o3xtemp));
+  ss_set(o3xout, 9, convert( o3xpres));
+  ss_set(o3xout, 10, convert( o3xbest));
+  ss_set(o3xout, 11, convert( o3xflowa));
+  ss_set(o3xout, 12, convert( o3xflowb));
+}

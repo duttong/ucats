@@ -1,0 +1,13 @@
+#!/bin/sh
+
+#cleanup
+saverun
+
+# Name the window.
+echo "\033\"trungc\"\c"
+echo "\033\"irungc\"\c"
+
+uavdoit
+
+#echo "\033/2t\c"
+	

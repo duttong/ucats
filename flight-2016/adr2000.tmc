@@ -1,0 +1,159 @@
+%{
+#include <sys/types.h>
+#include "adr2000.h"
+pid_t adr_proxy = 0;
+
+ADRstruct adr2000[NUMboards];
+
+float ADRanalog( int add ) {
+	int board, ch;
+
+	if ( add < 10 ) 
+		board = 0;
+	else if ( add < 20 )
+		board = 1;
+	else
+		board = 2;
+	ch = add % 10;
+
+	return adr2000[board].analog[ch];
+}
+
+float ADRdtoa( int add ) {
+	int board, ch;
+
+	if ( add < 10 ) 
+		board = 0;
+	else if ( add < 20 )
+		board = 1;
+	else
+		board = 2;
+	ch = add % 10;
+
+	return adr2000[board].dtoa[ch];
+}
+
+short ADRdig( int add ) {
+	int board, ch;
+
+	if ( add < 10 ) 
+		board = 0;
+	else if ( add < 20 )
+		board = 1;
+	else
+		board = 2;
+	ch = add % 10;
+
+	// -1 is used for NULL data in the adr2000 driver
+	// set -1 to 2 for indexing the bittxt.tmc arrays.
+	if ( adr2000[board].dig[ch] < 0 )
+		return 2;
+	else
+		return adr2000[board].dig[ch];
+
+}
+
+%}
+
+TM "proxy" adr_proxy 9;
+TM "Receive" adr2000 0;
+
+TM typedef float adrA { 
+	collect x = ADRanalog(x.address);
+	text "%6.3f";
+}
+
+TM typedef short adrD { 
+	collect x = ADRdig(x.address);
+	text "%5d";
+}
+
+TM typedef float adrDA { 
+	collect x = ADRdtoa(x.address);
+	text "%6.3f";
+}
+
+depending on ( 1 Hz ) {
+	if (adr_proxy != 0)  Trigger ( adr_proxy );
+}
+
+/* The definitions below can be used in a lab table.
+   They are currently not used for the flight operations.
+*/
+
+/* board 0 */
+
+/*
+TM 1/1 Hz adrA adr0v0; Address adr0v0 00;
+TM 1/1 Hz adrA adr0v1; Address adr0v1 01;
+TM 1/1 Hz adrA adr0v2; Address adr0v2 02;
+TM 1/1 Hz adrA adr0v3; Address adr0v3 03;
+TM 1/1 Hz adrA adr0v4; Address adr0v4 04;
+TM 1/1 Hz adrA adr0v5; Address adr0v5 05;
+TM 1/1 Hz adrA adr0v6; Address adr0v6 06;
+TM 1/1 Hz adrA adr0v7; Address adr0v7 07;
+
+TM 1/1 Hz adrDA adr0a0; Address adr0a0 00;
+TM 1/1 Hz adrDA adr0a1; Address adr0a1 01;
+
+TM 1/1 Hz adrD adr0d0; Address adr0d0 00;
+TM 1/1 Hz adrD adr0d1; Address adr0d1 01;
+TM 1/1 Hz adrD adr0d2; Address adr0d2 02;
+TM 1/1 Hz adrD adr0d3; Address adr0d3 03;
+TM 1/1 Hz adrD adr0d4; Address adr0d4 04;
+TM 1/1 Hz adrD adr0d5; Address adr0d5 05;
+TM 1/1 Hz adrD adr0d6; Address adr0d6 06;
+TM 1/1 Hz adrD adr0d7; Address adr0d7 07;
+*/
+
+/* board 1 */
+
+/*
+TM 1/1 Hz adrA adr1v0; Address adr1v0 10;
+TM 1/1 Hz adrA adr1v1; Address adr1v1 11;
+TM 1/1 Hz adrA adr1v2; Address adr1v2 12;
+TM 1/1 Hz adrA adr1v3; Address adr1v3 13;
+TM 1/1 Hz adrA adr1v4; Address adr1v4 14;
+TM 1/1 Hz adrA adr1v5; Address adr1v5 15;
+TM 1/1 Hz adrA adr1v6; Address adr1v6 16;
+TM 1/1 Hz adrA adr1v7; Address adr1v7 17;
+
+TM 1/1 Hz adrDA adr1a0; Address adr1a0 10;
+TM 1/1 Hz adrDA adr1a1; Address adr1a1 11;
+
+TM 1/1 Hz adrD adr1d0; Address adr1d0 10;
+TM 1/1 Hz adrD adr1d1; Address adr1d1 11;
+TM 1/1 Hz adrD adr1d2; Address adr1d2 12;
+TM 1/1 Hz adrD adr1d3; Address adr1d3 13;
+TM 1/1 Hz adrD adr1d4; Address adr1d4 14;
+TM 1/1 Hz adrD adr1d5; Address adr1d5 15;
+TM 1/1 Hz adrD adr1d6; Address adr1d6 16;
+TM 1/1 Hz adrD adr1d7; Address adr1d7 17;
+*/
+
+
+/* board 2 */
+
+/*
+TM 1/1 Hz adrA adr2v0; Address adr2v0 20;
+TM 1/1 Hz adrA adr2v1; Address adr2v1 21;
+TM 1/1 Hz adrA adr2v2; Address adr2v2 22;
+TM 1/1 Hz adrA adr2v3; Address adr2v3 23;
+TM 1/1 Hz adrA adr2v4; Address adr2v4 24;
+TM 1/1 Hz adrA adr2v5; Address adr2v5 25;
+TM 1/1 Hz adrA adr2v6; Address adr2v6 26;
+TM 1/1 Hz adrA adr2v7; Address adr2v7 27;
+
+TM 1/1 Hz adrDA adr2a0; Address adr2a0 20;
+TM 1/1 Hz adrDA adr2a1; Address adr2a1 21;
+
+TM 1/1 Hz adrD adr2d0; Address adr2d0 20;
+TM 1/1 Hz adrD adr2d1; Address adr2d1 21;
+TM 1/1 Hz adrD adr2d2; Address adr2d2 22;
+TM 1/1 Hz adrD adr2d3; Address adr2d3 23;
+TM 1/1 Hz adrD adr2d4; Address adr2d4 24;
+TM 1/1 Hz adrD adr2d5; Address adr2d5 25;
+TM 1/1 Hz adrD adr2d6; Address adr2d6 26;
+TM 1/1 Hz adrD adr2d7; Address adr2d7 27;
+*/
+

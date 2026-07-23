@@ -1,0 +1,71 @@
+/*----------------------------------------------------------------
+ gcitx.tmc
+ Requires base.tmc, gcitx.c
+ Produces .itx files for UAV
+----------------------------------------------------------------*/
+/* Circular buffer definitions for auxiliary channels.
+   These channels are specified as optional parameters to
+   GCSTOREIGORTEXT, as well as the size of the circular
+   buffer. Since AT_GSV_TEMP and BT_GSV_TEMP are normally
+   1/5 Hz, we must record their last value before buffering
+   at a 1 Hz rate.
+*/
+
+%{
+  #include "gcitx.h"
+  #include "tmctime.h"
+
+  // same define as in gc.tmc
+  #define 		ECDOFFLINE 		-9999
+%}
+
+float old_pres_SL;
+float old_temp_SL1;
+float old_temp_SL2;
+int old_ssv;
+int old_calssv;
+char itxbuffer[30];
+
+/* save values at injection time */
+depending on ( 1 Hz ) {
+	old_ssv = ssv;
+	old_calssv = valv_calSSV;
+	old_Pres_SL = convert( pres_SL );
+	old_temp_SL1 = convert( temp_SL1 );
+	old_temp_SL2 = convert( temp_SL2 );
+}	
+
+if ((GCstate == 1) || (GCstate == 3)) {
+  /* If we've written anything, finish it off */
+  /* close the file if we're moving on to a new file */
+  /* open a new file if necessary */
+
+  	itx_new_inj_flnm( CurrFile, CurrInj, "GCuav", itime() );
+
+  	/* collect the auxiliary data */
+	itoa( old_ssv, itxbuffer, 10 ); 
+	itx_aux_data_init( CUMSEC, itime(), itxbuffer );
+
+	itoa( old_calssv, itxbuffer, 10 ); 
+	itx_aux_data( itxbuffer, "; " );  
+
+	gcvt( old_pres_SL, 6, itxbuffer ); 
+	itx_aux_data( itxbuffer, "; " );  
+
+	gcvt( old_temp_SL1, 5, itxbuffer ); 
+	itx_aux_data( itxbuffer, "; " );
+
+	gcvt( old_temp_SL2, 5, itxbuffer ); 
+	itx_aux_data( itxbuffer, "\"\n" );
+}
+
+depending on ( Injection ) {
+
+	if ( (GC_Ctr_CH1 == ECDOFFLINE) && (GC_Ctr_CH2 == ECDOFFLINE) ) { }
+	else {
+		itx_ctr_dataL( GC_Ctr_CH1 );
+		itx_ctr_dataL( GC_Ctr_CH2 );
+		itx_text_data( "\n" );
+	}
+
+}

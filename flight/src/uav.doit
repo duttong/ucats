@@ -1,0 +1,14 @@
+# GSE script for UAV 2-channel GC
+batchfile interact
+display uavdisp main h2o
+client uavclt
+rtg /home/uav/flight/uav.rtg
+algorithm uavalgo -l
+#extraction intext -l
+#extraction gcitxext -l
+#extraction eng1ext -l
+#extraction eng2ext -l
+#extraction h2oext -l
+#extraction o3ext -l
+colorconfig normal.cfg
+memo

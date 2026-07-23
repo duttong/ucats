@@ -1,0 +1,15 @@
+#! /bin/sh
+
+#rm Makefile
+#appgen lab.spec
+#make distribution
+# cp uavdoit.good ../uavdoit
+
+#rm Makefile
+#appgen safe.spec
+
+#make distribution
+rm Makefile
+
+appgen uav.spec
+make distribution

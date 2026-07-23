@@ -1,0 +1,58 @@
+# data variables and IP info for the MTS system
+#
+# Modeled on ucats-b/telem-config.yaml. No real UCATS IP assignments were
+# found in this repo (uav.tma's telemetry instead goes over dedicated NASDAT/
+# KUband hardware -- drivers/nasdat, drivers/kuband -- not UDP), so the IPs
+# below are RFC 5737 documentation-range placeholders. TODO: replace with
+# real MTS/ground-station IPs before use.
+#
+# Variable names use this repo's naming convention (see ucats.py's eng_df):
+# ecdA_ch1/ecdA_ch2/ecdA_ch3 = 1s-averaged detector response (uav.tma: ecdA_CH1/CH2/CH3)
+# gc_state = air/cal/idle: this repo's software sequencer state (replaces
+#   uav.tma's hardware GCstate register, which lived on the SOLDRV_A board
+#   and isn't available to this software -- see setup.yaml's chromduration note)
+# ssv_cal_pos = cal SSV position (uav.tma: valv_calSSV)
+# omega_ch1_ecd / omega_ch1_col / omega_ch2_ecd / omega_ch2_col / omega_ch3_ecd /
+# omega_ch3_col / omega_ch3_post = the 7 temperature zones named in uav.tma's
+#   KUDATA_eng partition (only ch3 has a post-column zone -- see config.yaml)
+# gsv_ch1/gsv_ch2/gsv_ch3 = Valco GSV position, inject/load (uav.sol:
+#   gsvCH1/gsvCH2/gsvCH3 -- see setup.yaml's chromduration/gsv_phase_channels notes)
+mts:
+  iwg_prefix: UCA
+  ip: 198.51.100.10    # TODO: real MTS IP
+  port: 7075
+  rate: 1
+  variables:
+    - datetime
+    - ecdA_ch1
+    - ecdA_ch2
+    - ecdA_ch3
+    - gc_state
+    - ssv_cal_pos
+    - omega_ch1_ecd
+    - omega_ch2_ecd
+    - omega_ch3_ecd
+
+# data variables and IPs for data transmission to ground stations
+data:
+  iwg_prefix: UCAdata
+  ip: [198.51.100.11]   # TODO: real ground-station IPs
+  port: 50555
+  rate: 1   # frequency to send in seconds
+  variables:
+    - datetime
+    - ecdA_ch1
+    - ecdA_ch2
+    - ecdA_ch3
+    - gc_state
+    - ssv_cal_pos
+    - omega_ch1_ecd
+    - omega_ch1_col
+    - omega_ch2_ecd
+    - omega_ch2_col
+    - omega_ch3_ecd
+    - omega_ch3_col
+    - omega_ch3_post
+    - gsv_ch1
+    - gsv_ch2
+    - gsv_ch3

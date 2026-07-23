@@ -1,0 +1,82 @@
+AD0 {
+	Header: >"Board 0"<;
+	HBox { +-; Header: " Analog "; -+; };
+	HBox { " Ch 0: "; (adr0v0,6); " volts "; };
+	HBox { " Ch 1: "; (adr0v1,6); "   '   "; };
+	HBox { " Ch 2: "; (adr0v2,6); "   '   "; };
+	HBox { " Ch 3: "; (adr0v3,6); "   '   "; };
+	HBox { " Ch 4: "; (adr0v4,6); "   '   "; };
+	HBox { " Ch 5: "; (adr0v5,6); "   '   "; };
+	HBox { " Ch 6: "; (adr0v6,6); "   '   "; };
+	HBox { " Ch 7: "; (adr0v7,6); "   '   "; };
+	HBox { +-; Header: " Digital "; -+; };
+	HBox { " Ch 0: "; (adr0d0,6); "  bit "; };
+	HBox { " Ch 1: "; (adr0d1,6); "   '  "; };
+	HBox { " Ch 2: "; (adr0d2,6); "   '  "; };
+	HBox { " Ch 3: "; (adr0d3,6); "   '  "; };
+	HBox { " Ch 4: "; (adr0d4,6); "   '  "; };
+	HBox { " Ch 5: "; (adr0d5,6); "   '  "; };
+	HBox { " Ch 6: "; (adr0d6,6); "   '  "; };
+	HBox { " Ch 7: "; (adr0d7,6); "   '  "; };
+	HBox { +-; Header: " D to A "; -+ };
+	HBox { " Ch 0: "; (adr0a0,6); " volts "; };
+	HBox { " Ch 1: "; (adr0a1,6); "    '  "; };
+}
+
+AD1 {
+	Header: >"Board 1"<;
+	HBox { +-; Header: " Analog "; -+; };
+	HBox { " Ch 0: "; (adr1v0,6); " volts "; };
+	HBox { " Ch 1: "; (adr1v1,6); "   '   "; };
+	HBox { " Ch 2: "; (adr1v2,6); "   '   "; };
+	HBox { " Ch 3: "; (adr1v3,6); "   '   "; };
+	HBox { " Ch 4: "; (adr1v4,6); "   '   "; };
+	HBox { " Ch 5: "; (adr1v5,6); "   '   "; };
+	HBox { " Ch 6: "; (adr1v6,6); "   '   "; };
+	HBox { " Ch 7: "; (adr1v7,6); "   '   "; };
+	HBox { +-; Header: " Digital "; -+; };
+	HBox { " Ch 0: "; (adr1d0,6); "  bit "; };
+	HBox { " Ch 1: "; (adr1d1,6); "   '  "; };
+	HBox { " Ch 2: "; (adr1d2,6); "   '  "; };
+	HBox { " Ch 3: "; (adr1d3,6); "   '  "; };
+	HBox { " Ch 4: "; (adr1d4,6); "   '  "; };
+	HBox { " Ch 5: "; (adr1d5,6); "   '  "; };
+	HBox { " Ch 6: "; (adr1d6,6); "   '  "; };
+	HBox { " Ch 7: "; (adr1d7,6); "   '  "; };
+	HBox { +-; Header: " D to A "; -+ };
+	HBox { " Ch 0: "; (adr1a0,6); " volts "; };
+	HBox { " Ch 1: "; (adr1a1,6); "    '  "; };
+}
+
+AD2 {
+	Header: >"Board 2"<;
+	HBox { +-; Header: " Analog "; -+; };
+	HBox { " Ch 0: "; (adr2v0,6); " volts "; };
+	HBox { " Ch 1: "; (adr2v1,6); "   '   "; };
+	HBox { " Ch 2: "; (adr2v2,6); "   '   "; };
+	HBox { " Ch 3: "; (adr2v3,6); "   '   "; };
+	HBox { " Ch 4: "; (adr2v4,6); "   '   "; };
+	HBox { " Ch 5: "; (adr2v5,6); "   '   "; };
+	HBox { " Ch 6: "; (adr2v6,6); "   '   "; };
+	HBox { " Ch 7: "; (adr2v7,6); "   '   "; };
+	HBox { +-; Header: " Digital "; -+; };
+	HBox { " Ch 0: "; (adr2d0,6); "  bit "; };
+	HBox { " Ch 1: "; (adr2d1,6); "   '  "; };
+	HBox { " Ch 2: "; (adr2d2,6); "   '  "; };
+	HBox { " Ch 3: "; (adr2d3,6); "   '  "; };
+	HBox { " Ch 4: "; (adr2d4,6); "   '  "; };
+	HBox { " Ch 5: "; (adr2d5,6); "   '  "; };
+	HBox { " Ch 6: "; (adr2d6,6); "   '  "; };
+	HBox { " Ch 7: "; (adr2d7,6); "   '  "; };
+	HBox { +-; Header: " D to A "; -+ };
+	HBox { " Ch 0: "; (adr2a0,6); " volts "; };
+	HBox { " Ch 1: "; (adr2a1,6); "    '  "; };
+}
+
+
+{
+	HBox { =; Header: " ADR2000 Data Acquistion Boards "; =; };
+	HBox { +||+; [AD0]; +|+; [AD1]; +|+; [AD2]; +||+; };
+	=;
+	(%CLIENT,0+1,1);
+}

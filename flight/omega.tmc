@@ -1,0 +1,50 @@
+%{
+#include <sys/types.h>
+pid_t rs485_proxy;
+int Omega485[14];
+
+short OmegaArray ( int add ) {
+	return Omega485[add];
+}
+
+%}
+
+TM "proxy" rs485_proxy 3;
+TM "Receive" Omega485 0;
+
+TM typedef short OmegaT { 
+	collect x = OmegaArray( 2 * x.address - 2 );
+	text "%6.1f"; 
+}
+
+TM typedef short OmegaTsp { 
+	collect x = OmegaArray( 2 * x.address - 1 );
+	text "%6.1f"; 
+}
+
+
+/* Omega addresses -- these are the addresses programmed on the Omegas */
+/* CH1 and CH2 ECD switched to reflect actual wiring, 20210516 */
+/* try to fix CH1_ECD setpoint in 2022.  Set CH1_ECD from 7 to 4, CH2 from 4 to 7 */
+
+TM 1 Hz OmegaT CH3_ECD;			Address CH3_ECD		1;
+TM 1 Hz OmegaT CH3_Col;			Address CH3_Col		2;
+TM 1 Hz OmegaT CH3_Post;		Address CH3_Post	3;
+TM 1 Hz OmegaT CH1_ECD;			Address CH1_ECD		7;
+TM 1 Hz OmegaT CH1_Col;			Address CH1_Col		5;
+TM 1 Hz OmegaT CH2_Col;			Address CH2_Col		6;
+TM 1 Hz OmegaT CH2_ECD;			Address CH2_ECD		4;
+
+TM 1 Hz OmegaTsp CH3_ECD_Sp;	Address CH3_ECD_Sp	1;
+TM 1 Hz OmegaTsp CH3_Col_Sp;	Address CH3_Col_Sp	2;
+TM 1 Hz OmegaTsp CH3_Post_Sp;	Address CH3_Post_Sp	3;
+TM 1 Hz OmegaTsp CH1_ECD_Sp;	Address CH1_ECD_Sp	7;
+TM 1 Hz OmegaTsp CH1_Col_Sp;	Address CH1_Col_Sp	5;
+TM 1 Hz OmegaTsp CH2_Col_Sp;	Address CH2_Col_Sp	6;
+TM 1 Hz OmegaTsp CH2_ECD_Sp;	Address CH2_ECD_Sp	4;
+
+depending on ( 1 Hz ) {
+	if (rs485_proxy != 0) 
+		Trigger ( rs485_proxy );
+
+}

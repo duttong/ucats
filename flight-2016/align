@@ -1,0 +1,34 @@
+if [ $# != 1 ]; then
+	echo "Usage: align [valve address]"
+	echo "  exp: align 4"
+	exit
+fi
+
+VALVE=$1
+
+echo "Sending INIT to valve #$1"
+valco -c ${VALVE}in
+sleep 2
+echo "Toggle 1"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 2"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 3"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 4"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 5"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 6"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 7"
+valco -c ${VALVE}to
+sleep 2
+echo "Toggle 8"
+valco -c ${VALVE}to

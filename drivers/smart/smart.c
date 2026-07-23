@@ -1,0 +1,449 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/dev.h>
+#include <sys/name.h>
+#include <sys/proxy.h>
+#include <sys/kernel.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <math.h>
+#include <errno.h>
+#include <termios.h>
+
+#include "nortlib.h"
+#include "collect.h"
+#include "panthermsg.h"
+#include "smart.h"
+
+//#define DEBUG
+
+#define BAUD			9600
+#define RCV_MSG_SIZE	150
+#define RCVfromSRVR		5
+#define RAIL			200000.0
+#define	BIT24			16777216.0
+
+#define HARDWARE		"hardware.cfg"
+
+char 	nibbleToChar[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
+char 	port[30] = "/dev/ser1";	// ser1 is default
+char 	buffer[RCV_MSG_SIZE];
+int		fd;
+int 	ValidElec[MAXDET];		// array used to indicate valid electrometer address
+
+char *init_opt(int argc, char ** argv) {
+	int optltr,
+		i,
+		num,
+		bias = -1;
+
+	while ((optltr = getopt(argc, argv, "p:b:A:R:d:h")) != -1) {
+		switch( optltr ) {
+			case 'p': 
+				sprintf(port, "%s", optarg );
+				break;
+			case 'b':
+				bias = atoi(optarg);	
+				break;		
+			case 'd':
+				open_port( );
+				if (bias != -1) {
+					change_dac( atoi(optarg), bias );
+					printf("Detector %d BIAS changed to %d\n", atoi(optarg), bias );
+				} else {
+					num = read_electrometer( atoi(optarg) );
+					if ( num > 0 ) {
+						printf("\nDetector %d response ( %d data points follow )\n  ", atoi(optarg), num );
+						for(i=0; i<num-1; i++)
+							printf("%ld,", chrom[atoi(optarg)].resp[i]);
+						printf("%ld\n\n", chrom[atoi(optarg)].resp[i++]);
+					} else
+						printf("\nNo response from detector %d\n", atoi(optarg));	
+				}
+				exit(0);
+			case 'R':
+				open_port( );
+				send_reset( atoi(optarg) );
+				exit(0);
+			case 'A':
+				open_port( );
+				printf("Sending ADC resets -- this will take a few seconds.\n");
+				send_ADCresets( atoi(optarg) );
+				exit(0);
+			case 'h':
+				usage();
+				break;
+			default:
+				usage();
+		}
+	}
+
+	return port;
+
+}
+
+void usage() {
+	printf("USAGE: smart [-p serial port] [-d det] [-b bias] [-R det] [-A det] [-h]\n\n");
+	printf("   Examples:\n");
+	printf("   Run as smart driver for PANTHER on default serial port /dev/ser1 \n");
+	printf("       smart \n\n");
+	printf("   Run as smart driver for PANTHER on serial port /dev/ser3 \n");
+	printf("       smart -p /dev/ser3 \n\n");
+	printf("   Display snapshot of electrometer 2's data from port /dev/ser2 and quit. \n");
+	printf("       smart -p /dev/ser2 -d 2 \n\n");
+	printf("   Set bias to 230 on electrometer 2 connected to port /dev/ser2 and quit. \n");
+	printf("       smart -p /dev/ser2 -b 230 -d 2 \n\n");
+	printf("   Send reset to electrometer 3 on /dev/ser1 \n");
+	printf("       smart -R 3 \n\n");
+	printf("   Send 2 ADC resets to electrometer 4 on /dev/ser2 \n");
+	printf("       smart -p /dev/ser2 -A 4 \n\n");
+	exit(0);
+}
+
+void config_port( char *port ) {
+
+	char 	comm[200];
+
+	sprintf( comm, "stty +raw <%s\n", port );
+	if ( system ( comm ) == -1 )
+		printf("config_port error: %s\n", comm);
+
+	sprintf( comm, "stty +sane -osflow -ihflow -ohflow -lkhflow <%s\n", port );
+	if ( system ( comm ) == -1 )
+		printf("config_port error: %s\n", comm);
+
+	sprintf( comm, "stty baud=%d <%s\n", BAUD, port );
+	if ( system ( comm ) == -1 )
+		printf("config_port error: %s\n", comm);
+
+}
+
+void open_port( ) {
+
+	config_port( port );
+
+	printf("smart: trying serial port: %s\n", port);
+	if ( (fd = open( port , O_RDWR )) == -1) {
+		perror("smart could not open serial port");
+		exit(0);
+	} 
+
+	tcflush( fd, TCIOFLUSH );
+}
+
+// function reads the "hardware.cfg" file from the directory where smart was launched.
+void smartConfig ( ) {
+	
+	int		hrdfd,
+			add;
+	char 	buffer[2000];
+	char	comm[200];
+	char	*pt;
+	char	*delims = { " \n" };
+
+	// set all electrometers to invalid (0).
+	for ( add=0; add<MAXDET; add++ )
+		ValidElec[add] = 0;
+
+	if ((hrdfd = open( HARDWARE , O_RDONLY )) == -1) {
+		sprintf(comm, "Could not open %s file!\n", HARDWARE );
+		perror(comm);
+		return;
+	} 
+
+	if ( read(hrdfd, buffer, sizeof( buffer )) >= 2000 ) {
+		sprintf(comm, "%s file is too larger (greater than 2000 bytes).\n", HARDWARE );
+		perror(comm);
+		exit( -1 );
+	}
+
+	// Parse
+	pt = strtok( strlwr(buffer), delims );
+	while ( pt != NULL ) {
+		if ( strcmp( pt, "smart:" ) == 0 ) {
+			// smart variable found
+
+			pt = strtok( NULL, delims );
+
+			if ( strcmp( pt, "address:" ) == 0 ) {
+				add = atoi( strtok( NULL, delims ) );
+				printf ("hardware.cfg: smart valid address %d configured.\n", add);
+				ValidElec[add] = 1;
+			}
+
+		}
+		pt = strtok( NULL, delims );
+
+	}
+	
+	close( hrdfd );
+
+}
+
+
+void send_command(int detnum, char *cmd) {
+
+	int 	i,
+			checksum = 0,
+			chksumH,
+			chksumL,
+			char_out;
+	char	trans[50];
+	
+	/* Check for cmdPROGDAC command (command #2) */
+	if (cmd[0] == '2')
+		sprintf(trans, "LD%x%s", detnum, cmd);
+	else
+		sprintf(trans, "LD%x%c", detnum, cmd[0]);	
+		
+	/* Calculate the checksum characters */	
+	for (i = 1; i < strlen(trans); i++)
+		checksum = checksum + trans[i];
+
+	chksumH = (checksum & 0xF0) >> 4;
+	chksumL = (checksum & 0x0F);
+
+	if (cmd[0] == '2')
+		sprintf(trans, "%cLD%x%s%X%X%c", STX, detnum, cmd, chksumH, chksumL, ETX);
+	else
+		sprintf(trans, "%cLD%x%c%X%X%c", STX, detnum, cmd[0], chksumH, chksumL, ETX);
+
+	tcflush( fd, TCIOFLUSH );
+	
+	// printf("transmit %s\n bytes = %d\n", trans, strlen(trans));
+
+	char_out = write(fd, trans, strlen(trans));
+
+	tcdrain( fd );
+	
+	if (char_out != strlen(trans))
+		perror("send_command: Failed to send all data to port.");
+
+}
+
+
+static void flush_chrom( int detnum ) {
+	int j;
+
+	chrom[detnum].numpnts = 0;
+	for ( j=0; j < MAXPOINTS; j++ )
+		chrom[detnum].resp[j] = NOELECDATA;
+}
+
+
+void parse_chrom( ) {
+	char	tmp[7];
+	int		length,
+			detnum,
+			chksmHcp,
+			chksmLcp,
+			numchars,
+			i,
+			inc,
+			checksum=0;
+	
+	// possible data packet 
+	if ( buffer[0] == STX ) {
+	
+		length = strlen(buffer);
+		
+		detnum = buffer[3] - ASC0;
+		sprintf(tmp, "%c%c", buffer[4], buffer[5]);
+		numchars = strtol(tmp, NULL, 16);
+
+		/* Calculate the checksum characters */	
+		for (i = 1; i < 6+numchars; i++)
+			checksum = checksum + buffer[i];
+
+		chksmHcp = (checksum & 0x00F0) >> 4;
+		chksmHcp = nibbleToChar[chksmHcp];
+	
+		chksmLcp = (checksum & 0x000F);
+		chksmLcp = nibbleToChar[chksmLcp];
+
+		/* Checksums agree */
+		if ((buffer[6+numchars] == chksmHcp) && (buffer[7+numchars] == chksmLcp)) {
+			inc = 0;
+			for ( i=6; i < numchars+1; i+=6 ) {
+				sprintf(tmp, "%c%c%c%c%c%c",buffer[i], buffer[i+1], buffer[i+2], buffer[i+3],
+											buffer[i+4], buffer[i+5]);
+				chrom[detnum].resp[inc] = (long) floor( strtol(tmp, NULL, 16) * RAIL/BIT24 );
+				inc++;
+			}
+			chrom[detnum].numpnts = inc;
+
+		}
+
+	}
+		
+}
+
+void send_reset( int det ) {
+
+	send_command(det, "0");
+	delay(100);
+
+}
+
+void send_ADCresets( int det ) {
+
+
+	// send ADC reset 2 times
+	send_command(det, "7");
+	delay(1000);
+	send_command(det, "7");
+	delay(1000);
+
+}
+
+// initialize valid smart electrometer addresses
+int init_smart()
+{ 
+	int i;
+
+	for(i=0; i<MAXDET; i++) {
+		if ( ValidElec[i] ) {
+			printf("Sending reset to electrometer %d\n", i);
+			send_reset( i );
+		}
+	}
+	
+	for(i=0; i<MAXDET; i++) {
+		if ( ValidElec[i] ) {
+			printf("Sending ADC reset to electrometer %d\n", i);
+			send_ADCresets( i );
+		}
+	}
+
+	return 0;
+}
+
+// used to set the dac on electrometer
+// setpoint can be 0-255.
+int change_dac(int det, int setpoint)
+{ 
+	char 	cmd[4];
+
+	if ( setpoint > 255 )
+		setpoint = 255;
+	else if ( setpoint < 0 )
+		setpoint = 0;
+
+	sprintf(cmd, "2%02X", setpoint );
+	//printf("cmd = %s\n", cmd);
+
+	send_command( det, cmd );
+
+	return 0;
+}
+
+
+int read_electrometer( int det_num ) {
+	int 	i,
+			bytes;
+
+	for(i=0; i<RCV_MSG_SIZE; i++) 
+		buffer[i] = '\0';
+
+	send_command( det_num, "4" );
+
+	flush_chrom( det_num );
+
+	bytes = dev_read(fd, buffer, RCV_MSG_SIZE, RCV_MSG_SIZE, 0, 2, 0, 0);
+
+	if ( bytes > 0 )
+		parse_chrom();
+
+	return chrom[det_num].numpnts;
+}
+
+void main ( int argc, char ** argv ) {
+	char	*name;
+	char	rcvMsg[RCVfromSRVR];
+	int 	smartID,
+			i;
+	pid_t	rcvPid,
+			respPrx;
+	clock_t elecclock[MAXDET];
+
+	send_id	respID;
+
+	init_opt(argc, argv);
+
+	smartConfig();
+	open_port();
+	init_smart();
+
+	// initialize the arrays.
+	for( i=0; i<MAXDET; i++ )
+		elecclock[i] = 0;
+
+#ifndef DEBUG
+	// attach smart name 
+	name = nl_make_name( "smart", 1 );
+	smartID = qnx_name_attach( 0, name );
+	if ( smartID == -1 )
+		nl_error( 3, "Unable to attach name %s", name );
+
+	// Setup proxy for response data
+	respID = Col_send_init( "ECDresp", &chrom, sizeof(chrom) );
+	respPrx = Col_set_proxy( 8, msg_smartData );		// the 8 is hardwired in gc.tmc
+	Col_send( respID );
+#endif
+
+	while ( 1 ) {
+
+		rcvMsg[0] = msg_smartPoll;
+		rcvPid = Creceive( 0, rcvMsg, RCVfromSRVR );
+
+		if ( rcvPid != -1 ) {
+			switch( rcvMsg[0] ) {
+
+				case msg_smartReset:
+					Reply(rcvPid, "", 0);
+					send_command( rcvMsg[1], "0" );
+					delay(200);
+					send_command( rcvMsg[1], "7" );
+					delay(2000);
+					send_command( rcvMsg[1], "0" );
+					delay(2000);
+					break;
+
+				case msg_smartSetBias:
+					Reply(rcvPid, "", 0);
+					change_dac( rcvMsg[1], rcvMsg[2] );
+					break;
+	
+				case msg_smartData:
+					Col_send( respID );
+					for(i=0; i<MAXDET; i++) flush_chrom( i );
+					for(i=0; i<MAXDET; i++) {
+						if ( ValidElec[i] ) read_electrometer( i );
+					}
+					break;
+
+				case msg_smartQuit:
+					printf("smart driver quitting\n");
+					close(fd);
+					exit(0);
+
+				case msg_smartPoll:
+					break;
+
+				default:
+					break;
+
+			}
+
+		} else {
+			delay(25);
+		}
+	
+	}	
+	
+}

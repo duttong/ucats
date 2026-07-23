@@ -1,0 +1,25 @@
+38d37
+< %}
+39a39,41
+> unsigned int EXT_PRES_INC = 0;
+> %}
+> 
+83,85c85,98
+< 		{ if ( convert( pres_extern ) >= PumpOFF ) 
+< 			Validate InletPumpOFF;
+< 		}
+---
+> 	    Validate PumpON_PressCheck;
+> }
+> 
+> State PumpON_PressCheck {
+>     +3	{ if ( convert( pres_extern ) >= PumpOFF ) {
+>             msg( 0, "Press Extern High Pump Trigger (pres_extern = %6.1f)", convert(pres_extern));
+>             EXT_PRES_INC += 1;
+>             if (EXT_PRES_INC >= 4) {
+>                 Validate InletPumpOFF;
+>             }
+>           }  else {
+>             EXT_PRES_INC = 0;
+>           }
+> 	    }

@@ -1,0 +1,33 @@
+%{
+#include <sys/types.h>
+#include "addresses.h"
+pid_t valco_proxy;
+// valvePos[0], [1] and [2] are for SSVs, valvePos[3] and on are for GSVs
+// The valco driver returns 1, 2, or 3 for GSV positions.
+int valvePos[10] = {0,0,0,3,3,3,3,3,3,3};
+%}
+
+TM "proxy" valco_proxy 4;
+TM "Receive" valvePos 0;
+
+TM typedef short valvT { text "%3u"; }
+TM typedef DigBit valvetext { text "" Inject_Load_text[]; }
+TM typedef DigBit valvetext_inv { text "" Load_Inject_text[]; }
+
+TM 1 Hz valvetext valv_CH1;
+TM 1 Hz valvetext valv_CH2;
+TM 1 Hz valvetext_inv valv_CH3;
+TM 1 Hz valvT valv_calSSV;
+
+/* GSV addresses must be 3 to 9 */
+Group ValcoValves( valv_CH1, valv_CH2, valv_CH3, valv_calSSV ) {
+
+	valv_CH1 = valvePos[CH1gsvADD] - 1;
+	valv_CH2 = valvePos[CH2gsvADD] - 1;
+	valv_CH3 = valvePos[CH3gsvADD] - 1;
+	valv_calSSV = valvePos[CALSSVADD];
+
+	if (valco_proxy != 0) 
+		Trigger ( valco_proxy );    
+
+}

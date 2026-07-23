@@ -1,0 +1,24 @@
+<package> edfoui
+<unsort>
+<BLANK>
+Spreadsheet eng2, 21 columns:
+  eng2         [ 1] = temp_pump
+  eng2         [ 2] = temp_SL2
+  eng2         [ 3] = temp_amb
+  eng2         [ 4] = pres_extern
+  eng2         [ 5] = volt_1234
+  eng2         [ 6] = presL_dope
+  eng2         [ 7] = presL_cal
+  eng2         [ 8] = presL_N2
+  eng2         [ 9] = presH_123
+  eng2         [10] = volt_5
+  eng2         [11] = volt_15
+  eng2         [12] = volt_28
+  eng2         [13] = CH2_ECD
+  eng2         [14] = CH2_Col
+  eng2         [15] = CH2_Post
+  eng2         [16] = CH1_ECD
+  eng2         [17] = CH1_Col
+  eng2         [18] = GCstate
+  eng2         [19] = ssv
+  eng2         [20] = valv_calSSV

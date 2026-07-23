@@ -1,0 +1,70 @@
+%{ /* edf2ext.awk reading o3.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr o3;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	o3 = edf_ss_open( "o3", 11 );
+	ss_set_column(o3, 0, "%14.11lt", "Time");
+	ss_set_column(o3, 1, "%12.1f", "o3yy");
+	ss_set_column(o3, 2, "%12.1f", "o3mm");
+	ss_set_column(o3, 3, "%12.1f", "o3dd");
+	ss_set_column(o3, 4, "%12.1f", "o3hh");
+	ss_set_column(o3, 5, "%12.1f", "o3min");
+	ss_set_column(o3, 6, "%12.1f", "o3ss");
+	ss_set_column(o3, 7, "%9.2e", "");
+	ss_set_column(o3, 8, "%12.1f", "o3temp");
+	ss_set_column(o3, 9, "%12.1f", "o3pres");
+	ss_set_column(o3, 10, "%12.1f", "o3log");
+  }
+  void terminate(void) {
+	ss_close(o3);
+  }
+%}
+{
+  ss_insert_value(o3, dtime()+ext_delta, 0);
+  ss_set(o3, 1, convert( o3yy));
+  ss_set(o3, 2, convert( o3mm));
+  ss_set(o3, 3, convert( o3dd));
+  ss_set(o3, 4, convert( o3hh));
+  ss_set(o3, 5, convert( o3min));
+  ss_set(o3, 6, convert( o3ss));
+  ss_set(o3, 8, convert( o3temp));
+  ss_set(o3, 9, convert( o3pres));
+  ss_set(o3, 10, convert( o3log));
+}

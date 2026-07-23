@@ -1,0 +1,328 @@
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+%}
+
+State initialize  {
+	     > Telemetry Start
+	     > Pump GC Off
+	 +2  > Nitrogen Open
+	 +1  > Flow main channel 1 25
+	 +1  > Flow backflush channel 1 20
+	 +2	 > Mode GC Init
+	+25  > elec reset 2
+	+10  > Mode GC Init
+	 +2  validate Warmup;
+}
+
+%{
+#define NUMAIRINJ 	4		// number of air injections between cal injections
+#define NUMCALINJ 	1		// number of cal injections between air injections
+
+#define PumpOFF 	450		// mbar		(pump off at greater than this press)
+#define PumpON  	400		// mbar		(pump on at less than this press)
+#define PumpO3OFF 	900		// mbar		(O3 and H2O pump off at greater than this press)
+#define PumpO3ON  	800		// mbar		(O3 and H2O pump on at less than this press)
+#define HOT_ECD1	345		// C 		(temp ECD1 needs to be before injects )
+#define HOT_ECD2	345		// C 		(temp ECD2 needs to be before injects )
+#define N2fail  	0		// psi		(below this value set ECDs cold)
+
+unsigned int AirCount = 0;
+unsigned int CalCount = 0;
+
+unsigned int STATUS = 1;			// NASDAT status variable 
+unsigned int STATUS_WARNING = 0;	// used with status variable
+
+unsigned int EXT_PRES_INC = 0;
+%}
+
+State Warmup {
+	{ if (( CH2_ECD/10 > HOT_ECD2 ) || ( CH3_ECD/10 > HOT_ECD1 ))
+		Validate AltCheck;
+	}
+}
+
+State AltCheck {
+    { if ((( convert( pres_PUMP ) < PumpON ) && ( convert( pres_PUMP ) > 0 )) || (( convert( pres_extern ) < PumpON ) && ( convert( pres_extern ) > 0 ))) 
+		Validate InletPumpOn;
+	  else
+		Validate CalInjections;
+	}
+}
+
+State CalInjections {
+	    > sample cal
+	+1  > solenoid Samp Out Open
+	    > solenoid Samp In Open
+		{ msg( 0, "Starting Cal Seq. (pres_extern = %6.1f)", convert( pres_extern ) ); }
+	+10 > Mode GC Run 
+	    { STATUS = 1 + 2 + 4 + STATUS_WARNING; }
+        { if ((( convert( pres_PUMP ) < PumpON ) && ( convert( pres_PUMP ) > 0 )) || (( convert( pres_extern ) < PumpON ) && ( convert( pres_extern ) > 0 ))) 
+			Validate InletPumpON;
+		}
+}
+
+State InletPumpOff {
+	+1	> Pump GC Off
+	    { msg( 0, "Turning GC Pump OFF (pres_extern = %6.1f)", convert( pres_extern ) ); }
+	+1	> Mode GC Init
+        { if ((( convert( pres_PUMP ) < PumpON ) && ( convert( pres_PUMP ) > 0 )) || (( convert( pres_extern ) < PumpON ) && ( convert( pres_extern ) > 0 ))) 
+			Validate InletPumpON;
+		}
+}
+
+State InletPumpON {
+	+1	> Pump GC On
+		{ msg( 0, "Turning Pumps ON (pres_extern = %6.1f)", convert( pres_extern ) ); 
+		AirCount = 0;
+		CalCount = 0; }
+		Validate SSVtableInit;
+	+1	> Mode GC Run
+	    { STATUS = 1 + 2 + STATUS_WARNING; }
+	    Validate PumpON_PressCheck;
+}
+
+State PumpON_PressCheck {
+    +3	{ if ( convert( pres_extern ) >= PumpOFF ) {
+            msg( 0, "Press Extern High Pump Trigger (pres_extern = %6.1f)", convert(pres_extern));
+            EXT_PRES_INC += 1;
+            if (EXT_PRES_INC >= 4) {
+                Validate InletPumpOFF;
+            }
+          }  else {
+            EXT_PRES_INC = 0;
+          }
+	    }
+}
+
+PARTITION
+State O3AltCheck {
+    { if ((( convert( pres_PUMP ) < PumpO3ON ) && ( convert( pres_PUMP ) > 0 )) || (( convert( pres_extern ) < PumpO3ON ) && ( convert( pres_extern ) > 0 ))) 
+		Validate O3PumpOn;
+	}
+}
+
+State O3PumpOff {
+	+1	> Pump Ozone Off
+	    { msg( 0, "Turning O3 Pump OFF (pres_extern = %6.1f)", convert( pres_extern ) ); }
+	+1	> Pump Ozone Off
+        { if ((( convert( pres_PUMP ) < PumpO3ON ) && ( convert( pres_PUMP ) > 0 )) || (( convert( pres_extern ) < PumpO3ON ) && ( convert( pres_extern ) > 0 ))) 
+			Validate O3PumpON;
+		}
+}
+
+State O3PumpON {
+	+1	> Pump Ozone On
+	    { msg( 0, "Turning O3 Pump ON (pres_extern = %6.1f)", convert( pres_extern ) ); }
+	+1	> Pump Ozone On
+		{ if ( convert( pres_extern ) >= PumpO3OFF ) 
+			Validate O3PumpOFF;
+		}
+}
+
+PARTITION
+State Idle {}
+
+State SSVtableInit {
+	depending on ( Injecting2 ) { 
+		Validate SSVtable;
+	}
+}
+
+State SSVtable {
+
+	depending on ( 1 Hz ) {
+		depending on ( Injecting1 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+
+		depending on ( Injecting2 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+		
+		depending on ( NotInjecting ) {
+			AirCount = 0;
+			CalCount = 0;
+			Validate SSVtableInit;
+		}
+
+	}	
+}
+
+State AIRnext {
+	+2 > Sample Air
+	   { if ( ++AirCount == NUMAIRINJ ) {
+			AirCount = 0;
+			CalCount = 0;
+		 }
+	   }
+	   { STATUS = 1 + 2 + STATUS_WARNING; }
+	+1 Validate SSVtable;
+}
+
+State CALnext {
+	+2 > Sample Cal
+	   { if ( ++CalCount == NUMCALINJ ) CalCount = 500; }
+	   { STATUS = 1 + 2 + 4 + STATUS_WARNING; }
+	+1 Validate SSVtable;
+}
+
+
+# The following partition sends data to the NASDAT box.
+%{
+#include "nasdat.h"
+char nasdatMSG[NASDAT_MAXDATA];
+%}
+PARTITION
+State NASDAT_eng {
+
+	depending on (1 Hz) {	
+		sprintf( nasdatMSG, "xUCATS:%02d", STATUS );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(presH_123) );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(presL_N2) );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(temp_amb) );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_N2O );
+		nasdat_format_f( nasdatMSG, "%06.2f", MR_SF6 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CFC11 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CFC12 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CH4 );
+		sprintf( nasdatMSG, "%s\n", nasdatMSG );
+		/* msg( 0, "** NASDAT: %s", nasdatMSG ); */
+		send2nasdat( &nasdatMSG );
+	}
+} 
+
+# The following partition sends data to the KUDATA sent via the linksys box.
+%{
+#include "kuband.h"
+char kuMSG[KUDATA_MAXDATA];
+%}
+PARTITION
+State KUDATA_eng {
+
+	depending on (1 Hz) {	
+		/* Edited for low bandwidth Arctic portion of SABRE, break packet into four
+		   pieces (packets 0-3) and removed variable labels. 230106 GSD
+		   Maximum packet length is set in kuband.h
+
+			For SABRE 2025:
+ 		   Plenty of bandwidth; use modified packet from DCOTSS (no ozone, H2O, etc.)
+		   Add remaining variables, get rid of setpoints, etc. to save
+		   space in packet.  Maximum packet length is set in kuband.h
+		   There are four parameters for the KUformat functions.  The first is the kuMSG
+		   array followed by text, usually a variable name and a format string.  The third
+		   is the tmc variable, the fourth is the low value.  Below this value a NaN is sent.
+		   All UCATS data are now in the single user packet for SABRE.
+		*/
+		
+		sprintf(kuMSG, "\0");
+		KUformat_f(kuMSG, "flow_M1=%6.1f", 		convert(flow_M1), 		0);
+		KUformat_f(kuMSG, "flow_BF1=%6.1f", 	convert(flow_BF1), 		0);
+		KUformat_f(kuMSG, "pres_BP1=%6.1f", 	convert(pres_BP1), 		0);
+		KUformat_f(kuMSG, "pres_ECD1=%6.1f", 	convert(pres_ECD1), 	0);
+		KUformat_f(kuMSG, "temp_SL1=%6.1f", 	convert(temp_SL1),		0);
+		KUformat_f(kuMSG, "flow_M2=%6.1f", 		convert(flow_M2), 		0);
+		KUformat_f(kuMSG, "flow_BF2=%6.1f", 	convert(flow_BF2),		0);
+		KUformat_f(kuMSG, "pres_BP2=%6.1f", 	convert(pres_BP2), 		0);
+		KUformat_f(kuMSG, "pres_ECD2=%6.1f", 	convert(pres_ECD2), 	0);
+		KUformat_f(kuMSG, "temp_SL2=%6.1f", 	convert(temp_SL2), 		0);
+		KUformat_f(kuMSG, "flow_M3=%6.1f", 		convert(flow_M3), 		0);
+		KUformat_f(kuMSG, "flow_BF3=%6.1f", 	convert(flow_BF3),		0);
+		KUformat_f(kuMSG, "pres_BP3=%6.1f", 	convert(pres_BP3), 		0);
+		KUformat_f(kuMSG, "pres_ECD3=%6.1f", 	convert(pres_ECD3), 	0);
+		KUformat_f(kuMSG, "temp_SL3=%6.1f", 	convert(temp_SL3), 		0);
+		KUformat_f(kuMSG, "pres_extern=%6.1f", 	convert(pres_extern), 	0);
+		KUformat_f(kuMSG, "presL_dope=%6.1f", 	convert(presL_dope), 	0);
+		KUformat_f(kuMSG, "presL_cal=%6.1f", 	convert(presL_cal), 	0);
+		KUformat_f(kuMSG, "presL_N2=%6.1f", 	convert(presL_N2), 		0);
+		KUformat_f(kuMSG, "presH_123=%6.1f", 	convert(presH_123), 	0);
+		KUformat_f(kuMSG, "pres_PUMP=%6.1f", 	convert(pres_PUMP), 	0);
+		KUformat_f(kuMSG, "pres_SL=%6.1f", 		convert(pres_SL), 		0);
+		KUformat_f(kuMSG, "flow_SL=%6.1f", 		convert(flow_SL), 		0);
+		KUformat_f(kuMSG, "temp_gasB_N=%6.1f",	convert(temp_gasB_N), -30);
+		KUformat_f(kuMSG, "temp_gasB_C=%6.1f", 	convert(temp_gasB_C), -30);
+		KUformat_f(kuMSG, "temp_pump=%6.1f", 	convert(temp_pump),	  -30);
+		KUformat_f(kuMSG, "temp_amb=%6.1f", 	convert(temp_amb), 	  -30);
+		KUformat_d(kuMSG, "ecdA_CH1=%ld", 		ecdA_CH1, 				0);
+		KUformat_d(kuMSG, "ecdA_CH2=%ld", 		ecdA_CH2, 				0);
+		KUformat_d(kuMSG, "ecdA_CH3=%ld", 		ecdA_CH3, 				0);
+		KUformat_f(kuMSG, "volt_5=%7.3f", 		convert(volt_5), 		0);
+		KUformat_f(kuMSG, "volt_15=%6.2f", 		convert(volt_15), 	  -20);
+		KUformat_f(kuMSG, "volt_28=%6.2f", 		convert(volt_28), 		0);
+		KUformat_f(kuMSG, "CH3_ECD=%6.1f", 		CH3_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH3_Col=%6.1f", 		CH3_Col/10., 			0);
+		KUformat_f(kuMSG, "CH3_Post=%6.1f", 	CH3_Post/10., 			0);
+		KUformat_f(kuMSG, "CH1_ECD=%6.1f", 		CH1_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH1_Col=%6.1f", 		CH1_Col/10., 			0);
+		KUformat_f(kuMSG, "CH2_ECD=%6.1f", 		CH2_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH2_Col=%6.1f", 		CH2_Col/10., 			0);
+		KUformat_d(kuMSG, "GCstate=%02d", 		GCstate, 			   -1);
+		KUformat_d(kuMSG, "ssv=%d", 			ssv, 				   -2);
+		KUformat_f(kuMSG, "F11=%6.1f", 			MR_CFC11,			   -1);	
+		KUformat_f(kuMSG, "F12=%6.1f", 			MR_CFC12,			   -1);	
+		KUformat_f(kuMSG, "N2O=%6.1f", 			MR_N2O,				   -1);	
+		KUformat_f(kuMSG, "SF6=%6.2f", 			MR_SF6,				   -1);	
+		KUformat_f(kuMSG, "CH4=%6.1f", 			MR_CH4,				   -1);	
+		
+		send2kuband("eng", &kuMSG);
+	}
+} 
+
+
+#  This partition monitors the N2 carrier gas.  If the N2 regulator
+#  pressure on the lowside is below N2fail the ECDs will be set
+#  to a cold setting.  Commented out 200305
+#%{
+#unsigned int N2lowCount = 0;
+#unsigned int MAXN2LOWCNTS = 10;
+#%}
+#PARTITION
+#State CheckCarrier {
+#	+10	{ if ( (convert(presL_N2) < N2fail) && (convert(presL_N2) > 0) ) {
+#			msg( -2, "** (%d) LOW N2 Pressure (presL_N2 = %6.1f)", N2lowCount, convert(presL_N2) );
+#			if ( ++N2lowCount >= MAXN2LOWCNTS ) 
+#				Validate SetECDsCold; 
+#		  }
+#		  else if ( convert(presL_N2) >= N2fail ) 
+#			N2lowCount = 0; 
+#		}
+#}
+#
+#State SetECDsCold {
+#	+1	> Omega change SP1 CH1 ECD 10
+#	+1  > Omega change SP1 CH2 ECD 10
+#}
+
+# Toggle the fail board (dig line 03 on ADR board 0, ch=3) every second
+# added for ER-2, 200221
+%{
+#include "commands.h"
+%}
+PARTITION
+State FailBoard_Toggle {
+	depending on (1 Hz) {	
+    	ADRdigSet( 0, 3, 1 ); 
+		delay(500);
+        ADRdigSet( 0, 3, 0 ); 
+	}
+}
+
+#  This partition looks at the digin bit InitShutdown (see
+#  digital.tmc).  Once set, the Shutdown proceedure is called.
+PARTITION
+State ShutdownComputer {
+	+1	{ if ( InitShutdown == FALSE ) validate Shutdown; }
+}
+
+State Shutdown {
+	> Shutdown
+}

@@ -1,0 +1,16 @@
+# GSE script for UCATS
+batchfile interact
+display uavdisp main h2o
+playback uavclt
+rtg /home/uav/flight/uav.rtg
+algorithm uavalgo -l
+extraction intext -l
+extraction gcitxext -l
+extraction eng1ext -l
+extraction eng2ext -l
+extraction h2oext -l
+extraction o3ext -l
+#colorconfig scr.cfg
+colorconfig normal.cfg
+autostart
+memo

@@ -1,0 +1,17 @@
+rm -rf log*
+rm -rf [01]*.*
+rm -rf anal/*
+rm -rf chroms
+rm *.sps int-*
+if [ -f uav.log ]; then
+	rm uav.log 
+fi
+if [ -f GCFILE.CFG ]; then
+	rm GCFILE.CFG 
+fi
+if [ -f vaisala.out ]; then
+	rm vaisala.out
+fi
+if [ -f maycomm.out ]; then
+	rm maycomm.out
+fi

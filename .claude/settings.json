@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ping *)",
+      "Bash(ifconfig *)",
+      "Bash(ipconfig getifaddr *)",
+      "Bash(python3 smart.py -h)",
+      "Bash(python3 adr2000.py -h)"
+    ]
+  }
+}

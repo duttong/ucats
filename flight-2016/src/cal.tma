@@ -1,0 +1,107 @@
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+	#include "addresses.h"
+    #include "valves.h"
+%}
+
+State initialize  {
+	     > Telemetry Start
+	+15  > Mode GC Init
+	 +5  > ssv goto position 1
+	     > sample air
+}
+
+%{
+#define N2fail  20		// psi		(below this value set ECDs cold)
+%}
+
+Partition
+
+%{
+// the array "Sequence" can be any length. Sequence contains the
+// sequence of SSV positions for a calibration run.  Running caldoit
+// and starting the cal mode will call these routines.
+
+// select position 20 to sample from the internal cal solenoid
+// for cal expts. with flight cal tank in cal position
+//unsigned int Sequence[] = {20,1,3,5,11};
+//unsigned int Sequence[] = {1,1,3,3,5,5,11,11};
+// for tests:
+unsigned int Sequence[] = {1,1,1,20};
+unsigned int NUMCALSEQ = sizeof(Sequence)/sizeof(unsigned int);
+unsigned int SeqIndex = 0;
+%}
+
+State CalSSV {
+	depending on ( Injecting1 ) {
+		Validate NextCal;
+	}
+}
+
+# sets solenoid to cal position
+State Cal_pos {
+	+1 > sample cal
+	+2 { switch_ssv( CALSSVADD, Sequence[SeqIndex] );
+		if ( ++SeqIndex >= NUMCALSEQ ) SeqIndex = 0;
+	}
+	+5 Validate CalSSV;
+}
+
+# sets solenoid to air position and switches the external SSV to the sequence position
+State Air_pos {
+	+1 > sample air
+	+2 { switch_ssv( CALSSVADD, Sequence[SeqIndex] );
+		if ( ++SeqIndex >= NUMCALSEQ ) SeqIndex = 0;
+	}
+	+5 Validate CalSSV;
+}
+
+# chooses either the air or cal solenoid position
+# the 72 second wait is to get to the second half of a 140 s chromatogram
+State NextCal {
+	+72 { if (Sequence[SeqIndex] == 20)
+			Validate Cal_pos;
+		  else
+			Validate Air_pos;
+	   }
+}
+
+#  This partition monitors the N2 carrier gas.  If the N2 regulator
+#  pressure on the lowside is below N2fail the ECDs will be set
+#  to a cold setting.
+%{
+unsigned int N2lowCount = 0;
+unsigned int MAXN2LOWCNTS = 10;
+%}
+Partition
+State CheckCarrier {
+	+10	{ if ( (convert(presL_N2) < N2fail) && (convert(presL_N2) > 0) ) {
+			msg( -2, "** (%d) LOW N2 Pressure (presL_N2 = %f)", N2lowCount, convert(presL_N2) );
+			if ( ++N2lowCount >= MAXN2LOWCNTS ) 
+				Validate SetECDsCold; 
+		  }
+		  else if ( convert(presL_N2) >= N2fail ) 
+			N2lowCount = 0; 
+		}
+}
+
+State SetECDsCold {
+	+1	> Omega change SP1 CH1 ECD 10
+	+1  > Omega change SP1 CH2 ECD 10
+}
+
+
+#  This partition looks at the digin bit InitShutdown (see
+#  digital.tmc).  Once set, the Shutdown proceedure is called.
+ Partition
+ State ShutdownComputer {
+	+1	{ if ( InitShutdown == FALSE ) validate Shutdown; }
+}
+
+ State Shutdown {
+	> Shutdown
+}

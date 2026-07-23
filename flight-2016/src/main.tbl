@@ -1,0 +1,101 @@
+CHROM1 {
+	HBox{ +-; Header: " Channel 1 "; -; " "; (valv_CH1); -+; };
+	HBox{ "  Response: "; (ecdA_CH1, 6); >" Hz "; };
+	HBox{ " Main Flow: "; (flow_M1, 6); "("; (flow_M1_sp,6); ")"; >" cc/min "; };
+	HBox{ "   BF Flow: "; (flow_BF1, 6); "("; (flow_BF1_sp,6); ")"; >" cc/min "; };
+	HBox{ "   BP Pres: "; };
+	HBox{ "  ECD Pres: "; (pres_ECD2, 6); >" mbar "; };
+	HBox{ "  ECD Temp: "; (CH1_ECD, 6); "("; (CH1_ECD_sp,6); ")"; >"C  "; };
+	HBox{ "  Col Temp: "; (CH1_Col, 6); "("; (CH1_Col_sp,6); ")"; >"C  "; };
+	HBox{ "Valves Volt "; (volt_1234, 6); >" volts "; };
+	HBox{ "    ( 1FM-2FB-3PE-4PB ) "; };
+	HBox{ "  CH4 "; (MR_CH4,6); " ppb "; };
+}
+
+
+CHROM2 {
+	HBox{ +-; Header: " Channel 2 "; -; " "; (valv_CH2); -+; };
+	HBox{ "  Response: "; (ecdA_CH2, 6); >" Hz "; };
+	HBox{ " Main Flow: "; (flow_M2, 6); "("; (flow_M2_sp,6); ")"; >" cc/min "; };
+	HBox{ "   BF Flow: "; (flow_BF2, 6); "("; (flow_BF2_sp,6); ")"; >" cc/min "; };
+	HBox{ "   BP Pres: "; };
+	HBox{ "  ECD Pres: "; (pres_ECD2, 6); >" mbar "; };
+	HBox{ "  ECD Temp: "; (CH2_ECD, 6); "("; (CH2_ECD_sp,6); ")"; > "C  "; };
+	HBox{ "  Col Temp: "; (CH2_Col, 6); "("; (CH2_Col_sp,6); ")"; > "C  "; };
+	HBox{ "P.Col Temp: "; (CH2_Post, 6); "("; (CH2_Post_sp,6); ")"; > "C  "; };
+	HBox{ " "; };
+	HBox{ "  N2O "; (MR_N2O,6); " ppb "; "  SF6 "; (MR_SF6,6); " ppt "; };
+}
+
+Temps {
+	HBox{ +-; Header: " Temps "; -+; };
+	HBox{ " ambient: "; (temp_amb, 6); " C "; };
+	HBox{ "    pump: "; (temp_pump, 6); " C "; };
+	HBox{ " N2-botL: "; (temp_gasB_N, 6); " C "; };
+	HBox{ "Cal-botL: "; (temp_gasB_C, 6); " C "; };
+	HBox{ "  Loop 1: "; (temp_SL1, 6); >C<; };
+	HBox{ "  Loop 2: "; (temp_SL2, 6); >C<; };
+}
+
+SampLoop {
+	HBox{ +-; Header: " Sample Loops: "; -; " "; (ssv); -+; };
+	HBox{ "     Flow: "; (flow_SL, 6); >" cc/min "<; };
+	HBox{ "     Pres: "; (pres_SL, 6); >" mbar "<; };
+	HBox{ " IN: "; (SLoopIN); "  OUT: "; (SloopOUT); };
+	HBox{ " "; };
+	HBox{ " Ext SSV: "; (valv_calSSV); };
+	HBox{ " N2 valv: "; (N2_IN); " "; };
+}
+
+Other{
+	HBox{ "   5/12 volts: "; (volt_5, 6); >" volts "<; };
+	HBox{ " +/- 15 volts: "; (volt_15, 6); >" volts "<; };
+	HBox{ "  28/24 volts: "; (volt_28, 6); >" volts "<; };
+	HBox{ " Cal-low:"; (presL_cal, 6); " CO2-low:"; (presL_dope, 5); " "; };
+	HBox{ " N2-low: "; (presL_N2, 6); " N2O-low:"; (pres_BP1, 5); " "; }; 
+	HBox{ " Hi-N2/Cal/CO2:"; (presH_123, 6); >psi<; };
+	HBox{ "     Ext Pres: "; (pres_extern, 6); >mbar<; };
+	HBox{ "    PUMP Pres: "; (pres_PUMP, 6); >mbar<; };
+}
+
+Timing {
+	HBox { "  Chrom Time: "; (CHROMtime,6); };
+	HBox { "  Cumulative: "; (CUMSEC,6); };
+	HBox { " Injection #:  "; (CurrInj,6); };
+}
+
+Switches {
+	HBox { " Manual Switch: "; (ManSwitch); };
+	HBox { "    Key Switch: "; (KeySwitch); };
+	HBox { "   Pump Switch: "; (PumpSwitch); };
+}
+
+Ozone {
+	HBox { +-; Header: " Ozone "; -+; };
+	HBox { " O3: "; (o3,6); " Best: "; (o3best,6); " ppb "; };
+	HBox { " O3x:"; (o3x,6); " Best: "; (o3xbest,6); " ppb "; };
+	HBox { " Press: "; (o3pres,6); "  Temp: "; (o3temp,6); };
+	HBox { " PressX:"; (o3xpres,6); " TempX: "; (o3xtemp,6); };
+	HBox { " Lamp volt:"; (o3lmpv,6); "  +/- "; (o3lmpsd,6); " % "; };
+	HBox { "  O3x flowA:"; (o3xflowa,6); " B:"; (o3xflowb,6); " "; };
+ 	HBox { " DateX: "; (o3xyy,4); "/"; (o3xmm,2); "/"; (o3xdd,2); " "; (o3xhh,2); ":"; (o3xmin,2); ":"; (o3xss,2); " ";};
+}
+
+{
+	HBox { =; Header: " UAV GC "; =; };
+	HBox{ 
+		+||+; 
+		{
+			HBox { [SampLoop]; +|+; [Temps]; +|+; [Other]; };
+			=;
+			HBox { [CHROM1]; +||+; [CHROM2]; };
+			=;
+			HBox { [Timing]; [Switches]; " "; +|+; [Ozone]; };
+		};
+		+||+;
+	};	
+	=;
+	(%CLIENT,0+1,1);
+}
+
+	

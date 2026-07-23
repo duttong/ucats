@@ -1,0 +1,9 @@
+void shutdownservers( );
+int elec_bias ( int elec_num, int bias_value );
+int elec_reset ( int elec_num );
+void setOmegaSP1 ( int address, float valueF );
+void OmegaReset ( int address );
+void ADRdigSet( int board, int chan, int val );
+void ADRdtoaSet( int board, int chan, float val );
+void SetFlow( unsigned int board, unsigned int ch, float setpoint );
+void SetPress( unsigned int board, unsigned int ch, float setpoint );

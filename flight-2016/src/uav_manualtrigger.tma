@@ -1,0 +1,202 @@
+%{
+/* This tma file is set to use the manual switch and NOT a pressure trigger */
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+%}
+
+
+State initialize  {
+	     > Telemetry Start
+	     > Pump Off
+	+15	 > Mode GC Init
+	 +5  > sample air
+     +1  validate Warmup;
+}
+
+%{
+#define NUMAIRINJ 	7		// number of air injections between cal injections
+#define NUMCALINJ 	1		// number of cal injections between air injections
+
+#define HOT_ECD1	330		// C 		(temp ECD1 needs to be before injects )
+#define HOT_ECD2	300		// C 		(temp ECD2 needs to be before injects )
+#define N2fail  	40		// psi		(below this value set ECDs cold)
+
+unsigned int AirCount = 0;
+unsigned int CalCount = 0;
+%}
+
+State Warmup {
+	{ if (( CH2_ECD/10 > HOT_ECD2 ) || ( CH1_ECD/10 > HOT_ECD1 ))
+		Validate ManualSwitchCheck;
+	}
+}
+
+State ManualSwitchCheck {
+	{ if ( ManSwitch == 1 )
+		Validate InletPumpOn;
+	  else
+		Validate CalInjections;
+	}
+}
+
+State CalInjections {
+	    > sample cal
+	+1  > solenoid Samp Out Open
+	    > solenoid Samp In Open
+		{ msg( 0, "Starting Cal Seq. (not switched)" ); }
+		Validate Idle;
+	+10 > Mode GC Run 
+	    { if ( ManSwitch == 1 ) 
+			Validate InletPumpON;
+		}
+}
+
+State InletPumpOff {
+	+1	> Pump Off
+	    { msg( 0, "Turning Pump OFF (switched off)" ); }
+	+1	Validate CalInjections;
+#	+1	> Mode GC Init
+#	    { if ( ManSwitch == 1 ) 
+#			Validate InletPumpON;
+#		}
+}
+
+State InletPumpON {
+	+1	> Pump On
+		{ msg( 0, "Turning Pump ON (switched on)" );
+		AirCount = 0; 
+		CalCount = 0;}
+		Validate SSVtableInit;
+	+1	> Mode GC Run
+		{ if ( ManSwitch == 0 ) 
+			Validate InletPumpOFF;
+		}
+}
+
+
+PARTITION
+State Idle {}
+
+State SSVtableInit {
+
+	depending on ( Injecting2 ) {
+		Validate SSVtable;
+	}
+}
+
+State SSVtable {
+
+	depending on ( 1 Hz ) {
+
+		depending on ( Injecting1 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+
+		depending on ( Injecting2 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+
+	}
+
+}
+
+State AIRnext {
+	+2 > Sample Air
+	   { if ( ++AirCount == NUMAIRINJ ) {
+			AirCount = 0;
+			CalCount = 0;
+		 }
+	   }
+	+1 Validate SSVtable;
+}
+
+State CALnext {
+	+2 > Sample Cal
+	   { if ( ++CalCount == NUMCALINJ ) CalCount = 500; }
+	+1 Validate SSVtable;
+}
+
+
+# The following partition sends data to the REVEAL instrument.
+%{
+#include "reveal.h"
+int send2reveal( char * Smsg, int len );
+char revealMSG[REVEAL_MAXDATA];
+%}
+PARTITION
+State REVEAL_eng {
+	{	sprintf ( revealMSG, "ENG:%4.1f,%4.1f,%4.1f,%4.1f,%6ld,%6ld,%5.1f,%4.1f", 
+			convert(presH_123), convert(presL_N2), CH1_ECD/10., CH2_ECD/10.,
+			ecdA_CH1, ecdA_CH2, convert(pres_extern), vaiT);
+		send2reveal( &revealMSG, strlen(revealMSG) );
+		/* msg( 0, "** REVEAL: %s", revealMSG ); */
+	}
+} 
+
+PARTITION
+State REVEAL_h2o {
+	{	if ( tdlsH2O > -999 ) {
+	  		sprintf ( revealMSG, "H2O:%6.1f,%6.1f,%4.1f,%5.1f", tdlsH2O, tdllH2O, tdlT, tdlP);
+			send2reveal( &revealMSG, strlen(revealMSG) );
+			/* msg( 0, "** REVEAL: %s", revealMSG ); */
+		}
+	}
+}
+
+PARTITION 
+State REVEAL_o3 {
+	depending on ( 1/10 Hz ) {
+		if ( o3 > -999 ) {
+			sprintf ( revealMSG, "O3:%6.1f,%4.1f,%5.1f", o3, o3temp, o3pres);
+			send2reveal( &revealMSG, strlen(revealMSG) );
+			/* msg( 0, "** REVEAL: %s", revealMSG ); */
+		}
+	}
+}
+
+
+
+#  This partition monitors the N2 carrier gas.  If the N2 regulator
+#  pressure on the lowside is below N2fail the ECDs will be set
+#  to a cold setting.
+%{
+unsigned int N2lowCount = 0;
+unsigned int MAXN2LOWCNTS = 10;
+%}
+PARTITION
+State CheckCarrier {
+	+10	{ if ( (convert(presL_N2) < N2fail) && (convert(presL_N2) > 0) ) {
+			msg( -2, "** (%d) LOW N2 Pressure (presL_N2 = %f)", N2lowCount, convert(presL_N2) );
+			if ( ++N2lowCount >= MAXN2LOWCNTS ) 
+				Validate SetECDsCold; 
+		  }
+		  else if ( convert(presL_N2) >= N2fail ) 
+			N2lowCount = 0; 
+		}
+}
+
+State SetECDsCold {
+	+1	> Omega change SP1 CH1 ECD 10
+	+1  > Omega change SP1 CH2 ECD 10
+}
+
+
+#  This partition looks at the digin bit InitShutdown (see
+#  digital.tmc).  Once set, the Shutdown proceedure is called.
+PARTITION
+State ShutdownComputer {
+	+1	{ if ( InitShutdown == FALSE ) validate Shutdown; }
+}
+
+State Shutdown {
+	> Shutdown
+}

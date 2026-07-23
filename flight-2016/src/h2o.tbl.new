@@ -1,0 +1,39 @@
+TDLeng {
+	HBox { +-; Header: " TDL Cell "; -+; };
+	HBox { "   Temp "; (tdl_t,6); " oC   "; };
+	HBox { "   Temp "; (tdl_elecT,6); " oC   "; };
+	HBox { "   Pres "; (tdl_p,6); " mbar "; };
+	HBox { "  H2O Best: "; (tdl_best,8); " ppm "; };
+	HBox { +-; Header: " Pelt "; -+; };
+	HBox { "   Temp "; (H2O_Pelt,6); "  oC    "; };
+	HBox { "     SP "; (H2O_Pelt_sp,6); "  oC    "; };
+}	
+
+TDLwv {
+	HBox { +-; Header: " TDL Short Path "; -+; };
+	HBox { "  H2O "; (tdl_shortH2O,8); };
+	HBox { "  H2OB"; (tdl_H2OB,8); };
+	HBox { +-; Header: " TDL Long Path "; -+; };
+	HBox { "  H2O "; (tdl_longH2O,8); };
+	HBox { " H2OCD"; (tdl_H2OCD,8); };
+}
+
+TDLcell {
+	HBox { +-; Header: " Cell "; -+; };
+	HBox { " 2f amp "; (tdl_amp,6); " "; };
+	HBox { "  power "; (tdl_pow,6); " "; };
+	HBox { "  posit "; (tdl_pos,6); " "; };
+	HBox { " positB "; (tdl_posB,6); " "; };
+	HBox { "   zero "; (tdl_zer,6); " "; };
+}
+
+{
+	HBox { =; Header: " UAV H2O Measurements "; =; };
+	HBox {
+		+||+; 
+		HBox { [TDLeng]; +|+; [TDLwv]; +|+; [TDLcell]; };
+		+||+; 
+	};
+	=;
+	(%CLIENT,0+1,1);
+}

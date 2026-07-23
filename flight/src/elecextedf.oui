@@ -1,0 +1,9 @@
+<package> edfoui
+<unsort>
+<BLANK>
+Spreadsheet elec1e, 6 columns:
+  elec1e       [ 1] = GCstate
+  elec1e       [ 2] = SLoopIN
+  elec1e       [ 3] = SLoopOUT
+  elec1e       [ 4] = temp_SL1
+  elec1e       [ 5] = pres_SL

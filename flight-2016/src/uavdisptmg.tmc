@@ -1,0 +1,100 @@
+%{
+  #include "rtgapi.h"
+  rtg_t *chromCH2_rtg[2];
+  int chromCH2_rtginc = 1;
+  rtg_t *chromCH1_rtg[2];
+  int chromCH1_rtginc = 1;
+  rtg_t *ozoneConc_rtg[2];
+  int ozoneConc_rtginc = 1;
+  rtg_t *ozonePres_rtg[2];
+  int ozonePres_rtginc = 1;
+  rtg_t *ozoneTemp_rtg[2];
+  int ozoneTemp_rtginc = 1;
+  rtg_t *ozoneXConc_rtg[2];
+  int ozoneXConc_rtginc = 1;
+  rtg_t *ozoneXPres_rtg[2];
+  int ozoneXPres_rtginc = 1;
+  rtg_t *ozoneXTemp_rtg[2];
+  int ozoneXTemp_rtginc = 1;
+  rtg_t *TDLbest_rtg[2];
+  int TDLbest_rtginc = 1;
+  void rtgext_init( void ) {
+    chromCH2_rtg[0] = rtg_init( "chromCH2/0" );
+    chromCH2_rtg[1] = rtg_init( "chromCH2/1" );
+    chromCH1_rtg[0] = rtg_init( "chromCH1/0" );
+    chromCH1_rtg[1] = rtg_init( "chromCH1/1" );
+    ozoneConc_rtg[0] = rtg_init( "ozoneConc/0" );
+    ozoneConc_rtg[1] = rtg_init( "ozoneConc/1" );
+    ozonePres_rtg[0] = rtg_init( "ozonePres/0" );
+    ozonePres_rtg[1] = rtg_init( "ozonePres/1" );
+    ozoneTemp_rtg[0] = rtg_init( "ozoneTemp/0" );
+    ozoneTemp_rtg[1] = rtg_init( "ozoneTemp/1" );
+    ozoneXConc_rtg[0] = rtg_init( "ozoneXConc/0" );
+    ozoneXConc_rtg[1] = rtg_init( "ozoneXConc/1" );
+    ozoneXPres_rtg[0] = rtg_init( "ozoneXPres/0" );
+    ozoneXPres_rtg[1] = rtg_init( "ozoneXPres/1" );
+    ozoneXTemp_rtg[0] = rtg_init( "ozoneXTemp/0" );
+    ozoneXTemp_rtg[1] = rtg_init( "ozoneXTemp/1" );
+    TDLbest_rtg[0] = rtg_init( "TDLbest/0" );
+    TDLbest_rtg[1] = rtg_init( "TDLbest/1" );
+  }
+%}
+depending on ( GCInc once ) {
+  rtg_increment( chromCH2_rtginc, 2 );
+  rtg_increment( chromCH1_rtginc, 2 );
+}
+depending on ( OzoneInc once ) {
+  rtg_increment( ozoneConc_rtginc, 2 );
+  rtg_increment( ozonePres_rtginc, 2 );
+  rtg_increment( ozoneTemp_rtginc, 2 );
+  rtg_increment( ozoneXConc_rtginc, 2 );
+  rtg_increment( ozoneXPres_rtginc, 2 );
+  rtg_increment( ozoneXTemp_rtginc, 2 );
+}
+depending on ( MaycommInc once ) {
+  rtg_increment( TDLbest_rtginc, 2 );
+}
+/* plot.tmg sends GC averages to RTG. This depends on the state
+   Injection defined in gc.tmc (which is in the TM base anyway)
+   and on the averages performed in spcalc.tmc
+*/
+
+if ( GC_Ctr_CH2 >= 0 )
+depending on ( GCInc ) {
+  	rtg_report( chromCH2_rtg[ chromCH2_rtginc ], ecdCH2x, GC_Ctr_CH2 );
+}
+
+if ( GC_Ctr_CH1 >= 0 )
+depending on ( GCInc ) {
+  	rtg_report( chromCH1_rtg[ chromCH1_rtginc ], ecdCH1x, GC_Ctr_CH1 );
+}
+
+if ( o3pres > 0 ) {
+depending on ( OzoneInc ) {
+  	rtg_report( ozoneConc_rtg[ ozoneConc_rtginc ], O3count, o3 );
+}
+depending on ( OzoneInc ) {
+  	rtg_report( ozonePres_rtg[ ozonePres_rtginc ], O3count, o3pres );
+}
+depending on ( OzoneInc ) {
+  	rtg_report( ozoneTemp_rtg[ ozoneTemp_rtginc ], O3count, o3temp );
+}
+}
+
+if ( o3xpres > 0 ) {
+depending on ( OzoneInc ) {
+  	rtg_report( ozoneXConc_rtg[ ozoneXConc_rtginc ], O3count, o3x );
+}
+depending on ( OzoneInc ) {
+  	rtg_report( ozoneXPres_rtg[ ozoneXPres_rtginc ], O3count, o3xpres );
+}
+depending on ( OzoneInc ) {
+  	rtg_report( ozoneXTemp_rtg[ ozoneXTemp_rtginc ], O3count, o3xtemp );
+}
+}
+
+if (( tdl_best != old_tdl_best ) && (tdl_best > 0)) {
+depending on ( MaycommInc ) {
+  	rtg_report( TDLbest_rtg[ TDLbest_rtginc ], maycX, tdl_best );
+}
+}

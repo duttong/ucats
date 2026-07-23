@@ -1,0 +1,12 @@
+# omega_config.yaml
+# PID parameters for Omega Platinum controllers.
+# Used by:  python omega.py --config <address>
+# The first column is the controller address.
+# Commands written:
+#   W503 = P , W504 = I , W505 = D
+# Update only the numeric values below.
+
+1: {P: 20.080, I: 0.194, D: 519.564}
+2: {P: 30.872, I: 0.468, D: 509.393}
+3: {P: 27.584, I: 0.378, D: 503.413}
+4: {P: 19.757, I: 0.298, D: 327.837}

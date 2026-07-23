@@ -1,0 +1,71 @@
+%{
+#include <sys/types.h>
+#include "maycomm.h"
+pid_t maycomm_proxy = 0;
+
+TDLstruct tdl;
+
+%}
+
+state ( MaycommInc, MaycommTog );
+validate MaycommInc;
+
+TM 1 Hz ULONG maycX;
+maycX++;
+
+depending on ( 1 Hz ) {
+	depending on ( MaycommTog ) { validate MaycommInc; }
+
+	if ( maycX >= 120 ) { 
+		maycX = 0;
+		validate MaycommTog;
+	}
+}
+
+
+TM "proxy" maycomm_proxy 12;
+TM "Receive" tdl 0;
+
+TM typedef float tdlfloat { text "%8.1f"; }
+TM typedef float tdlfloas { text "%6.1f"; }
+TM typedef short tdlint6  { text "%6d"; }
+
+TM 1 Hz tdlfloas tdlP; 
+TM 1 Hz tdlfloas tdlT; 
+TM 1 Hz tdlfloat tdlsH2O;	/* short path */
+TM 1 Hz tdlint6  tdlsAmp;
+TM 1 Hz tdlint6  tdlsPow;
+TM 1 Hz tdlint6  tdlsPos;
+TM 1 Hz tdlint6  tdlsZer;
+TM 1 Hz tdlfloat tdllH2O;	/* long path */
+TM 1 Hz tdlint6  tdllAmp;
+TM 1 Hz tdlint6  tdllPow;
+TM 1 Hz tdlint6  tdllPos;
+TM 1 Hz tdlint6  tdllZer;
+
+collect tdlP = tdl.p;
+collect tdlT = tdl.t;
+collect tdlsH2O = tdl.s.h2o;
+collect tdllH2O = tdl.l.h2o;
+
+/* TDL engineering parameters for short path laser */
+Group TDLshort ( tdlsAmp, tdlsPow, tdlsPos, tdlsZer) {
+	tdlsAmp = tdl.s.amp;
+	tdlsPow = tdl.s.pow;
+	tdlsPos = tdl.s.pos;
+	tdlsZer = tdl.s.zero;
+}
+
+/* TDL engineering parameters for long path laser */
+Group TDLlong ( tdllAmp, tdllPow, tdllPos, tdllZer) {
+	tdllAmp = tdl.l.amp;
+	tdllPow = tdl.l.pow;
+	tdllPos = tdl.l.pos;
+	tdllZer = tdl.l.zero;
+}
+
+	
+depending on ( 1 Hz ) {
+	if (maycomm_proxy != 0)  Trigger ( maycomm_proxy );
+}
+

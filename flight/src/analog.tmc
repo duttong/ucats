@@ -1,0 +1,242 @@
+TM typedef float VOL5;
+TM typedef float TEMP;
+TM typedef float FLOW;
+TM typedef float PRESS;
+TM typedef float ANLU { text "%6.1f"; }
+TM typedef float ANLU3 { text "%6.3f"; }
+
+
+
+TM typedef adrA VOLTS { text "%6.1f"; convert VOL5; }
+Calibration ( VOLTS, VOL5 ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 5
+}
+
+
+TM typedef adrA VOLTS512 { text "%6.1f"; convert VOL5; }
+Calibration ( VOLTS512, VOL5 ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 15.8
+}
+
+
+TM typedef adrA VOLTSPM { text "%6.1f"; convert VOL5; }
+Calibration ( VOLTSPM, VOL5 ) {
+	-5.0002, -999.9,
+	-5.0001, -999.9,
+	-5, -15.9,
+	5, 15.9
+}
+
+
+
+TM typedef adrA VOLTS28 { text "%6.1f"; convert VOL5; }
+Calibration ( VOLTS28, VOL5 ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 34
+}
+
+
+TM typedef adrA MBAR { text "%6.1f"; convert PRESS; }
+Calibration ( MBAR, PRESS ) {
+	-0.00002, -999.9,
+	-0.01, -999.9,
+	0.0, -1,
+	0.2,  0,
+	2.05, 835
+}
+
+
+TM typedef adrA MBARpnu { text "%6.1f"; convert PRESS; }
+Calibration ( MBARpnu, PRESS ) {
+	-0.00002, -999.9,
+	-0.01, -999.9,
+	0.0, -1,
+	0.2,  797,
+	2.05, 1174
+}
+
+
+TM typedef adrA MBARpnuSL { text "%6.1f"; convert PRESS; }
+Calibration ( MBARpnuSL, PRESS ) {
+	-0.00002, -999.9,
+	-0.01, -999.9,
+	0.0, -1,
+	0.02,  724,
+	4.5, 1276,
+	5.0, 1337
+}
+
+
+TM typedef adrDA MBARsp { text "%6.1f"; convert PRESS; }
+Calibration ( MBARsp, PRESS ) {
+	-0.00002, -999.9,
+	0.39999, -999.9,
+	0.4, 0,
+	5,  1100
+}
+
+TM typedef adrA CELS { text "%6.1f"; convert TEMP; }
+Calibration ( CELS, TEMP ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0 , 99,
+	5, -44
+}
+
+
+TM typedef adrA SCCM { text "%6.1f"; convert FLOW; }
+Calibration ( SCCM, FLOW ) {
+	-0.02, -999.9,
+	-0.01, -999.9,
+	0.0,   -1, 
+	0.5,    0,
+	2.5,   150
+}
+
+TM typedef adrA SCCMpnu { text "%6.1f"; convert FLOW; }
+Calibration ( SCCMpnu, FLOW ) {
+	-0.02, -999.9,
+	-0.01, -999.9,
+	0.00,    0,
+	2.50,   200
+}
+
+TM typedef adrDA SCCMsp { text "%6.1f"; convert FLOW; }
+Calibration ( SCCMsp, FLOW ) {
+	-0.00002, -999.9,
+	0.99999, -999.9,
+	1, 0,
+	5, 150
+}
+
+TM typedef adrDA SCCMspPN { text "%6.1f"; convert FLOW; }
+Calibration ( SCCMspPN, FLOW ) {
+	-0.02, -999.9,
+	-0.01, -999.9,
+	0.00, 0,
+	5.00, 200
+}
+
+TM typedef adrA SCCMsl { text "%6.1f"; convert FLOW; }
+Calibration ( SCCMsl, FLOW ) {
+	-0.02, -999.9,
+	-0.01, -999.9,
+	0.0,   -1, 
+	0.5,    0,
+	1.2,	43.8,
+	1.8,	104.4,
+	2.2,	160
+}
+
+
+TM typedef adrA PSI { text "%6.1f"; convert PRESS; }
+Calibration ( PSI, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 30
+}
+
+TM typedef adrDA PSIsp { text "%6.1f"; convert PRESS; }
+Calibration ( PSIsp, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 30
+}
+
+TM typedef adrA PSIBpnu { text "%6.1f"; convert PRESS; }
+Calibration ( PSIBpnu, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	2.5, 100
+}
+
+TM typedef adrDA PSIBspPN { text "%6.1f"; convert PRESS; }
+Calibration ( PSIBspPN, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 100
+}
+
+TM typedef adrA PSIL { text "%6.1f"; convert PRESS; }
+Calibration ( PSIL, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, -20,
+	5, 150
+}
+TM typedef adrA PSIH { text "%6.1f"; convert PRESS; }
+Calibration ( PSIH, PRESS ) {
+	-0.00002, -999.9,
+	-0.00001, -999.9,
+	0, 0,
+	5, 5000
+}
+
+
+/* Channel 1 */
+
+TM 1 Hz SCCMpnu flow_M1;      Address flow_M1 		10;
+TM 1 Hz SCCMspPN flow_M1_sp;  Address flow_M1_sp 	10;
+TM 1 Hz SCCMpnu flow_BF1;     Address flow_BF1 		11;
+TM 1 Hz SCCMspPN flow_BF1_sp; Address flow_BF1_sp 	11;
+TM 1 Hz PSIBpnu pres_BP1;     Address pres_BP1 		12;
+TM 1 Hz PSIBspPN pres_BP1_sp; Address pres_BP1_sp 	00;
+/* Sample loop pressure and ECD1 pressure are not same; changed 20210516 */
+TM 1 Hz MBARpnu pres_ECD1;	  Address pres_ECD1 	13;
+TM 1 Hz CELS temp_gasB_N;     Address temp_gasB_N 	14;
+TM 1 Hz CELS temp_SL1;        Address temp_SL1 		15;
+/* TM 1 Hz CELS temp_CPU;     Address temp_CPU 		16; */
+TM 1 Hz CELS temp_amb;        Address temp_amb 		16;
+TM 1 Hz SCCMsl flow_SL;       Address flow_SL 		17;
+
+/* Channel 2 */
+
+TM 1 Hz SCCMpnu flow_M2;      Address flow_M2 		20;
+TM 1 Hz SCCMspPN flow_M2_sp;  Address flow_M2_sp 	20;
+TM 1 Hz SCCMpnu flow_BF2;     Address flow_BF2 		21;
+TM 1 Hz SCCMspPN flow_BF2_sp; Address flow_BF2_sp 	21;
+TM 1 Hz PSIBpnu pres_BP2;     Address pres_BP2 		22;
+TM 1 Hz PSIBspPN pres_BP2_sp; Address pres_BP2_sp 	01;
+TM 1 Hz MBARpnu pres_ECD2;    Address pres_ECD2 	23;
+TM 1 Hz CELS temp_pump;       Address temp_pump 	24;
+TM 1 Hz CELS temp_SL2;        Address temp_SL2 		25;
+TM 1 Hz CELS temp_gasB_C;     Address temp_gasB_C 	26;
+TM 1 Hz MBAR pres_PUMP;       Address pres_PUMP 	27;
+
+/* Channel 3 */
+
+TM 1 Hz SCCMpnu flow_M3;      Address flow_M3 		30;
+TM 1 Hz SCCMspPN flow_M3_sp;  Address flow_M3_sp 	30;
+TM 1 Hz SCCMpnu flow_BF3;     Address flow_BF3 		31;
+TM 1 Hz SCCMspPN flow_BF3_sp; Address flow_BF3_sp 	31;
+/* TM 1 Hz PSIBspPN pres_BP3_sp;    Address pres_BP3_sp 	01; need a DAC channel still 191004 */
+TM 1 Hz PSIBpnu pres_BP3;     Address pres_BP3 		32;
+TM 1 Hz MBARpnu pres_ECD3;    Address pres_ECD3 	33;
+TM 1 Hz CELS temp_SL3;        Address temp_SL3 		35;
+TM 1 Hz MBAR pres_extern;     Address pres_extern 	37;
+
+/* Common 0  Note: DAC 0 and 1 in channel 1 and 2 under _sp */
+/* volt_1234 no longer used with new Pneucleus controllers */
+/* Analog 0 now used for S.L. P; was volt_1234 */
+
+TM 1 Hz MBARpnuSL pres_SL;    Address pres_SL 		00;
+TM 1 Hz VOLTS512 volt_1234;	  Address volt_1234		00;
+TM 1 Hz PSIL presL_dope;	  Address presL_dope	03;
+TM 1 Hz PSIL presL_cal;		  Address presL_cal		01;
+TM 1 Hz PSIL presL_N2;		  Address presL_N2		02;
+TM 1 Hz PSIH presH_123;		  Address presH_123		04;
+TM 1 Hz VOLTS512 volt_5;	  Address volt_5		05;
+TM 1 Hz VOLTSPM volt_15;	  Address volt_15 		06;
+TM 1 Hz VOLTS28 volt_28;	  Address volt_28 		07;

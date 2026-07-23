@@ -1,0 +1,22 @@
+<package> edfoui
+<unsort>
+<BLANK>
+Spreadsheet h2oout, 19 columns:
+  h2oout       [ 1] = tdlrec
+  h2oout       [ 2] = tdl_time
+  h2oout       [ 3] = tdl_shortH2O
+  h2oout       [ 4] = tdl_H2OB
+  h2oout       [ 5] = tdl_longH2O
+  h2oout       [ 6] = tdl_H2OCD
+  h2oout       [ 7] = tdl_p
+  h2oout       [ 8] = tdl_t
+  h2oout       [ 9] = tdl_elecT
+  h2oout       [10] = tdl_amp
+  h2oout       [11] = tdl_pow
+  h2oout       [12] = tdl_pos
+  h2oout       [13] = tdl_zer
+  h2oout       [14] = tdl_posB
+  h2oout       [15] = H2O_Pelt
+  h2oout       [16] = H2O_Pelt_Sp
+  h2oout       [17] = vaiT
+  h2oout       [18] = vaiRH

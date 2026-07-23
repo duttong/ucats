@@ -1,0 +1,69 @@
+/* Basic Definitions */
+
+TM typedef unsigned short UINT { text "%5u"; }
+TM 1 Hz UINT CurrInj;
+TM 1 Hz UINT CurrFile;
+
+/* Solenoid Status */
+TM typedef unsigned char UCHAR { text "%3d"; }
+TM 1 Hz UCHAR GCstate;
+TM 1 Hz UCHAR RunState;
+
+TM typedef unsigned char UNYBL {
+  text "%2d";
+}
+
+
+TM typedef unsigned long InjFile {
+  text "%7.3lf";
+}
+
+InjFile ITXFileNum; invalidate ITXFileNum;
+
+{ ITXFileNum = CurrInj * 1000 + CurrFile;
+  validate ITXFileNum;
+}
+
+
+state ( NotInjecting, Injecting1, Injection, Injecting2 );
+validate NotInjecting;
+state ( LabMode, RunMode );
+validate LabMode;
+
+state ( GCInc, GCTog );
+validate GCInc;
+
+TM typedef unsigned long ULONG { text "%6u"; }
+TM 1 Hz ULONG CUMSEC;
+CUMSEC++;
+
+%{
+	unsigned short InjectingInc = 0;
+%}
+
+depending on ( 1 Hz ) {
+  	if ( GCstate == 0 ) validate NotInjecting;
+	else if ( GCstate == 1 ) validate Injecting1;
+	else if ( GCstate == 2 ) validate Injection;
+	else if ( GCstate == 3 ) validate Injecting2;
+}
+depending on ( 1 Hz ) {
+	if ( RunState == 0 ) validate LabMode;
+	else if ( RunState == 1 ) validate RunMode;
+}
+
+TM 1 Hz ULONG CHROMtime;
+depending on ( 1 Hz ) {
+  depending on ( Injection ) { CHROMtime++; InjectingInc = 0; }
+  if ((GCstate == 1) || (GCstate == 3)) { 
+	if (InjectingInc == 0 ) {
+		CHROMtime = 1; 
+		InjectingInc = 1;
+	}
+	else CHROMtime += 1;
+  }
+}
+
+/* REQUIRED */
+	TM 16 Hz UINT MFCtr, Synch;
+

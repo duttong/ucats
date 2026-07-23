@@ -1,0 +1,7 @@
+spreadsheet elecresp 7 
+	1	 GC_Ctr_CH1	%8.0f
+	2	 GC_Ctr_CH2	%8.0f
+	3	 GCstate	%8.0f
+	4	 pres_SL	%12.1f
+	5	 temp_SL1	%12.1f
+	6	 temp_SL2	%12.1f

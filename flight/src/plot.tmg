@@ -1,0 +1,29 @@
+/* plot.tmg sends GC averages to RTG. This depends on the state
+   Injection defined in gc.tmc (which is in the TM base anyway)
+   and on the averages performed in spcalc.tmc
+*/
+
+if ( GC_Ctr_CH3 >= 0 )
+	RTG_SCAN( GCInc, chromCH3[2], ecdCH3x, GC_Ctr_CH3 );
+
+if ( GC_Ctr_CH2 >= 0 )
+	RTG_SCAN( GCInc, chromCH2[2], ecdCH2x, GC_Ctr_CH2 );
+
+if ( GC_Ctr_CH1 >= 0 )
+	RTG_SCAN( GCInc, chromCH1[2], ecdCH1x, GC_Ctr_CH1 );
+
+if ( o3pres > 0 ) {
+	RTG_SCAN( OzoneInc, ozoneConc[2], O3count, o3 );
+	RTG_SCAN( OzoneInc, ozonePres[2], O3count, o3pres );
+	RTG_SCAN( OzoneInc, ozoneTemp[2], O3count, o3temp );
+}
+
+if ( o3xpres > 0 ) {
+	RTG_SCAN( OzoneInc, ozoneXConc[2], O3count, o3x );
+	RTG_SCAN( OzoneInc, ozoneXPres[2], O3count, o3xpres );
+	RTG_SCAN( OzoneInc, ozoneXTemp[2], O3count, o3xtemp );
+}
+
+if (( tdl_best != old_tdl_best ) && (tdl_best > 0)) {
+	RTG_SCAN( MaycommInc, TDLbest[2], maycX, tdl_best );
+}

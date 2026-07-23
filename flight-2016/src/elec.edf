@@ -1,0 +1,7 @@
+spreadsheet elec1e 6 separate
+	1	 GCstate 	%8.0f
+	2	 SLoopIN 	%8.0f
+	3	 SLoopOUT 	%8.0f
+	4 	 temp_SL1	%12.1f
+	5 	 pres_SL	%12.1f
+

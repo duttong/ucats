@@ -1,0 +1,169 @@
+%{
+#include <math.h>
+#include <sys/name.h>
+#include <sys/kernel.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include "smart.h"
+#include "regnames.h"
+#include "panthermsg.h"
+#include "addresses.h"
+
+#define 		ECDOFFLINE 		-9999
+#define			NUMSECSXAXIS	 280
+
+pid_t			ECDresp_proxy;
+
+chrom_packet 	ECDresp[MAXDET];
+
+long int 		DetAvgCt1=0, DetAvgCt2=0, DetAvgCt3=0,
+		 		DetAvgOffline1=0, DetAvgOffline2=0, DetAvgOffline3=0,
+	 			ecd_sum1=0, ecd_sum2=0, ecd_sum3=0,
+				ecdA_CH2save=0, ecdA_CH1save=0, ecdA_CH3save=0;
+float			ecdCH2x = 0.0, ecdCH1x = 0.0, ecdCH3x = 0.0;
+int				currPoint[MAXDET];
+
+// function gets the data from shared data array with smart driver
+long int GC_Ctr_Pull( int elecADD ) {
+	long ecdDATA;
+	
+	if ( currPoint[elecADD] >= MAXPOINTS ) currPoint[elecADD] = 0;
+
+	// new data
+	if ( currPoint[elecADD] < ECDresp[elecADD].numpnts ) {
+		ecdDATA = ECDresp[elecADD].resp[currPoint[elecADD]];
+		currPoint[elecADD]++;
+	} 
+	else {
+		ecdDATA = ECDOFFLINE;
+		currPoint[elecADD] = 0;
+		ECDresp[elecADD].numpnts = -1;
+	}
+
+	return ecdDATA;	
+}
+
+%}
+
+TM typedef long GC_Freq { text "%6ld"; }
+TM typedef long GC_Ctr { 
+	text "%8ld"; 
+	collect x = GC_Ctr_Pull(x.address);
+}
+
+TM "proxy" ECDresp_proxy 8;
+TM "Receive" ECDresp 0; 
+
+depending on ( 1 Hz ) {
+	if (ECDresp_proxy != 0) Trigger ( ECDresp_proxy );
+}
+
+/* these are the electrometer addresses */
+/* For Ch. 1 and 2 cables swapped: */
+/* TM 16 Hz GC_Ctr GC_Ctr_CH1;  Address GC_Ctr_CH1 1; */
+/* TM 16 Hz GC_Ctr GC_Ctr_CH2;  Address GC_Ctr_CH2 0; */
+/* TM 16 Hz GC_Ctr GC_Ctr_CH3;  Address GC_Ctr_CH3 2; */
+
+TM 16 Hz GC_Ctr GC_Ctr_CH1;  Address GC_Ctr_CH1 0;
+TM 16 Hz GC_Ctr GC_Ctr_CH2;  Address GC_Ctr_CH2 1;
+TM 16 Hz GC_Ctr GC_Ctr_CH3;  Address GC_Ctr_CH3 2;
+
+GC_Freq ecdA_CH1, ecdA_CH2, ecdA_CH3;
+invalidate ecdA_CH3;
+invalidate ecdA_CH2;
+invalidate ecdA_CH1;
+
+depending on ( 16 Hz ) {
+	if (GC_Ctr_CH3 >= 0) {
+		ecd_sum3 += GC_Ctr_CH3;
+		DetAvgCt3++;
+		ecdCH3x += 0.1;
+	} 
+	if (GC_Ctr_CH2 >= 0) {
+		ecd_sum1 += GC_Ctr_CH2;
+		DetAvgCt1++;
+		ecdCH2x += 0.1;
+	} 
+	if (GC_Ctr_CH1 >= 0) {
+		ecd_sum2 += GC_Ctr_CH1;
+		DetAvgCt2++;
+		ecdCH1x += 0.1;
+	}
+}
+
+/* handle x-axis variables for plotting (see gc.tmg) */
+depending on ( 1 Hz ) {
+	depending on ( GCTog ) {
+		validate GCInc;
+	}
+
+	depending on ( Injecting1 once ) {
+		validate GCTog;
+		ecdCH1x = 0.0;
+		ecdCH2x = 0.0;
+		ecdCH3x = 0.0;
+	}
+
+	if ( ecdCH2x > NUMSECSXAXIS ) {
+		validate GCTog;
+		ecdCH1x = 0.0;
+		ecdCH2x = 0.0;
+		ecdCH3x = 0.0;
+	}
+}
+
+
+/* handle the 1 second averaging for display */
+depending on ( 1 Hz ) {
+	if ( DetAvgCt1 > 0 ) {
+		ecdA_CH2 = ecd_sum1/DetAvgCt1;
+		ecdA_CH2save = ecdA_CH2;
+		DetAvgCt1 = 0;
+		ecd_sum1 = 0;
+		DetAvgOffline1 = 0;
+	} 
+	else if (( ecdA_CH2save > 0 ) && ( DetAvgOffline1 < 1 )) {
+		DetAvgOffline1++;
+		ecdA_CH2 = ecdA_CH2save;
+	}
+	else {
+		ecdA_CH2 = ECDOFFLINE;
+		ecdA_CH2save = 0;
+	}
+	validate ecdA_CH2;
+
+	if ( DetAvgCt2 > 0 ) {
+		ecdA_CH1 = ecd_sum2/DetAvgCt2;
+		ecdA_CH1save = ecdA_CH1;
+		DetAvgCt2 = 0;
+		ecd_sum2 = 0;
+		DetAvgOffline2 = 0;
+	} 
+	else if (( ecdA_CH1save > 0 ) && ( DetAvgOffline2 < 1 )) {
+		DetAvgOffline2++;
+		ecdA_CH1 = ecdA_CH1save;
+	}
+	else {
+		ecdA_CH1 = ECDOFFLINE;
+		ecdA_CH1save = 0;
+	}
+	validate ecdA_CH1;
+
+	if ( DetAvgCt3 > 0 ) {
+		ecdA_CH3 = ecd_sum3/DetAvgCt3;
+		ecdA_CH3save = ecdA_CH3;
+		DetAvgCt3 = 0;
+		ecd_sum3 = 0;
+		DetAvgOffline3 = 0;
+	} 
+	else if (( ecdA_CH3save > 0 ) && ( DetAvgOffline3 < 1 )) {
+		DetAvgOffline3++;
+		ecdA_CH3 = ecdA_CH3save;
+	}
+	else {
+		ecdA_CH3 = ECDOFFLINE;
+		ecdA_CH3save = 0;
+	}
+	validate ecdA_CH3;
+
+}

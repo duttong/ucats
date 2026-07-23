@@ -1,0 +1,73 @@
+%{ /* edf2ext.awk reading elec.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr elec1e;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	elec1e = edf_ss_open( "elec1e", 6 );
+	ss_set_column(elec1e, 0, "%14.11lt", "Time");
+	ss_set_column(elec1e, 1, "%8.0f", "GCstate");
+	ss_set_column(elec1e, 2, "%8.0f", "SLoopIN");
+	ss_set_column(elec1e, 3, "%8.0f", "SLoopOUT");
+	ss_set_column(elec1e, 4, "%12.1f", "temp_SL1");
+	ss_set_column(elec1e, 5, "%12.1f", "pres_SL");
+  }
+  void terminate(void) {
+	ss_close(elec1e);
+  }
+%}
+{
+  ss_insert_value(elec1e, dtime()+ext_delta, 0);
+  ss_set(elec1e, 1, convert( GCstate));
+}
+{
+  ss_insert_value(elec1e, dtime()+ext_delta, 0);
+  ss_set(elec1e, 2, convert( SLoopIN));
+}
+{
+  ss_insert_value(elec1e, dtime()+ext_delta, 0);
+  ss_set(elec1e, 3, convert( SLoopOUT));
+}
+{
+  ss_insert_value(elec1e, dtime()+ext_delta, 0);
+  ss_set(elec1e, 4, convert( temp_SL1));
+}
+{
+  ss_insert_value(elec1e, dtime()+ext_delta, 0);
+  ss_set(elec1e, 5, convert( pres_SL));
+}

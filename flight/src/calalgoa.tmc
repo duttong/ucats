@@ -1,0 +1,211 @@
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+	#include "addresses.h"
+    #include "valves.h"
+%}
+%{
+#define N2fail  20		// psi		(below this value set ECDs cold)
+%}
+%{
+// the array "Sequence" can be any length. Sequence contains the
+// sequence of SSV positions for a calibration run.  Running caldoit
+// and starting the cal mode will call these routines.
+
+// select position 20 to sample from the internal cal solenoid
+// for cal expts. with flight cal tank in cal position
+//unsigned int Sequence[] = {20,1,3,5,11};
+//unsigned int Sequence[] = {1,1,3,3,5,5,11,11};
+unsigned int Sequence[] = {1,20};
+//unsigned int Sequence[] = {1,3,5,7};
+//unsigned int Sequence[] = {1,3,5,7,20};
+unsigned int NUMCALSEQ = sizeof(Sequence)/sizeof(unsigned int);
+unsigned int SeqIndex = 0;
+%}
+%{
+unsigned int N2lowCount = 0;
+unsigned int MAXN2LOWCNTS = 10;
+%}
+%{
+  #include "nortlib.h"
+  #include "tma.h"
+  char ci_version[] = "$CGID: uavcmd.c: Sat Feb  8 22:35:55 2025 $";
+%}
+state (initialize);
+Validate initialize;
+state (CalSSV, Cal_pos, Air_pos, NextCal);
+Validate CalSSV;
+state (CheckCarrier, SetECDsCold);
+Validate CheckCarrier;
+state (ShutdownComputer, Shutdown);
+Validate ShutdownComputer;
+state (part_0_idle_);
+Validate part_0_idle_;
+state (part_1_idle_, Cal_pos_1_, Air_pos_1_, NextCal_end_);
+Validate part_1_idle_;
+state (part_2_idle_, CheckCarrier_end_);
+Validate part_2_idle_;
+state (part_3_idle_, ShutdownComputer_end_);
+Validate part_3_idle_;
+%{
+  tma_state initialize_cmds_[] = {
+       0, ">Telemetry Start\n",
+      15, ">Mode GC Init\n",
+      20, ">ssv goto position 1\n",
+      20, ">sample air\n",
+      -1, NULL
+  };
+%}
+depending on (initialize once) {
+  tma_init_state( 0, initialize_cmds_, "initialize" );
+  Validate part_0_idle_;
+}
+%{
+  tma_state CalSSV_cmds_[] = {
+      -1, NULL
+  };
+%}
+depending on (CalSSV once) {
+  tma_init_state( 1, CalSSV_cmds_, "CalSSV" );
+  Validate part_1_idle_;
+}
+depending on ( CalSSV,  Injecting1  ) {
+		Validate NextCal;
+	}
+%{
+  tma_state Cal_pos_cmds_[] = {
+       1, ">sample cal\n",
+       3, "#12", /* Cal_pos_1_ */
+       8, "#2", /* CalSSV */
+       8, "#11", /* part_1_idle_ */
+      -1, NULL
+  };
+%}
+depending on (Cal_pos once) {
+  tma_init_state( 1, Cal_pos_cmds_, "Cal_pos" );
+  Validate part_1_idle_;
+}
+depending on ( Cal_pos_1_ once ) { switch_ssv( CALSSVADD, Sequence[SeqIndex] );
+		if ( ++SeqIndex >= NUMCALSEQ ) SeqIndex = 0;
+	}
+%{
+  tma_state Air_pos_cmds_[] = {
+       1, ">sample air\n",
+       3, "#13", /* Air_pos_1_ */
+       8, "#2", /* CalSSV */
+       8, "#11", /* part_1_idle_ */
+      -1, NULL
+  };
+%}
+depending on (Air_pos once) {
+  tma_init_state( 1, Air_pos_cmds_, "Air_pos" );
+  Validate part_1_idle_;
+}
+depending on ( Air_pos_1_ once ) { switch_ssv( CALSSVADD, Sequence[SeqIndex] );
+		if ( ++SeqIndex >= NUMCALSEQ ) SeqIndex = 0;
+	}
+%{
+  tma_state NextCal_cmds_[] = {
+      77, "#14", /* NextCal_end_ */
+      -1, NULL
+  };
+%}
+depending on (NextCal once) {
+  tma_init_state( 1, NextCal_cmds_, "NextCal" );
+  Validate part_1_idle_;
+}
+depending on ( NextCal_end_ ) { if (Sequence[SeqIndex] == 20)
+			Validate Cal_pos;
+		  else
+			Validate Air_pos;
+	   }
+%{
+  tma_state CheckCarrier_cmds_[] = {
+      10, "#16", /* CheckCarrier_end_ */
+      -1, NULL
+  };
+%}
+depending on (CheckCarrier once) {
+  tma_init_state( 2, CheckCarrier_cmds_, "CheckCarrier" );
+  Validate part_2_idle_;
+}
+depending on ( CheckCarrier_end_ ) { if ( (convert(presL_N2) < N2fail) && (convert(presL_N2) > 0) ) {
+			msg( -2, "** (%d) LOW N2 Pressure (presL_N2 = %f)", N2lowCount, convert(presL_N2) );
+			if ( ++N2lowCount >= MAXN2LOWCNTS ) 
+				Validate SetECDsCold; 
+		  }
+		  else if ( convert(presL_N2) >= N2fail ) 
+			N2lowCount = 0; 
+		}
+%{
+  tma_state SetECDsCold_cmds_[] = {
+       1, ">Omega change SP1 CH1 ECD 10\n",
+       2, ">Omega change SP1 CH2 ECD 10\n",
+      -1, NULL
+  };
+%}
+depending on (SetECDsCold once) {
+  tma_init_state( 2, SetECDsCold_cmds_, "SetECDsCold" );
+  Validate part_2_idle_;
+}
+%{
+  tma_state ShutdownComputer_cmds_[] = {
+       1, "#18", /* ShutdownComputer_end_ */
+      -1, NULL
+  };
+%}
+depending on (ShutdownComputer once) {
+  tma_init_state( 3, ShutdownComputer_cmds_, "ShutdownComputer" );
+  Validate part_3_idle_;
+}
+depending on ( ShutdownComputer_end_ ) { if ( InitShutdown == FALSE ) validate Shutdown; }
+%{
+  tma_state Shutdown_cmds_[] = {
+       0, ">Shutdown\n",
+      -1, NULL
+  };
+%}
+depending on (Shutdown once) {
+  tma_init_state( 3, Shutdown_cmds_, "Shutdown" );
+  Validate part_3_idle_;
+}
+%{
+  const int tma_n_partitions = 4;
+%}
+depending on ( 1 Hz ) {
+  long int it;
+  int subcase;
+
+  it = itime();
+  ci_settime( it );
+  while ( subcase = tma_process( it ) ) {
+	switch (subcase) {
+	  case -1:
+	  case 0: break;
+	  case 1: validate initialize; break;
+	  case 2: validate CalSSV; break;
+	  case 3: validate Cal_pos; break;
+	  case 4: validate Air_pos; break;
+	  case 5: validate NextCal; break;
+	  case 6: validate CheckCarrier; break;
+	  case 7: validate SetECDsCold; break;
+	  case 8: validate ShutdownComputer; break;
+	  case 9: validate Shutdown; break;
+	  case 10: validate part_0_idle_; break;
+	  case 11: validate part_1_idle_; break;
+	  case 12: validate Cal_pos_1_; break;
+	  case 13: validate Air_pos_1_; break;
+	  case 14: validate NextCal_end_; break;
+	  case 15: validate part_2_idle_; break;
+	  case 16: validate CheckCarrier_end_; break;
+	  case 17: validate part_3_idle_; break;
+	  case 18: validate ShutdownComputer_end_; break;
+	  default:
+		nl_error( 1, "Unexpected return value from tma_process" );
+		break;
+	}
+  }
+}

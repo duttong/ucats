@@ -1,0 +1,97 @@
+%{
+#include <sys/types.h>
+#include "maycomm.h"
+pid_t maycomm_proxy = 0;
+
+TDLstruct tdl;
+
+#define USECD  200    // use lines CD when the corrected long path is less than 200 ppm
+#define USEShort  2000    // use short path when the corrected long path is greater than 2000 ppm
+#define ZeroOffset -3.6   // zero offset for lines CD, switched from -6.6 on 5/28/2022
+%} 
+
+state (MaycommInc, MaycommTog);
+validate MaycommInc;
+
+TM 2 Hz ULONG maycX;
+maycX++;
+
+depending on (2 Hz) {
+    depending on (MaycommTog) {validate MaycommInc;}
+
+    if (maycX >= 120) {
+        maycX = 0;
+        validate MaycommTog;
+    }
+}
+
+
+TM "proxy" maycomm_proxy 12;
+TM "Receive" tdl 0;
+
+TM typedef float tdlfloa9 {text "%9.2f";}
+TM typedef float tdlfloat {text "%8.2f";}
+TM typedef float tdlfloas {text "%6.2f";}
+TM typedef float tdlfloa7 {text "%7.1f";}
+TM typedef short tdlint6  {text "%6d";}
+TM typedef  long tdlint8  {text "%8d";}
+
+
+TM 2 Hz tdlint8   tdlrec;
+TM 2 Hz tdlfloa9  tdl_time;
+TM 2 Hz tdlfloa7  tdl_shortH2O;
+TM 2 Hz tdlfloa7  tdl_H2OB;
+TM 2 Hz tdlfloat  tdl_longH2O;
+TM 2 Hz tdlfloat  tdl_H2OCD;
+ 
+TM 2 Hz tdlfloa7 tdl_p; 
+TM 2 Hz tdlfloas tdl_t; 
+TM 2 Hz tdlfloas tdl_elecT;
+TM 2 Hz tdlint6  tdl_amp;
+TM 2 Hz tdlint6  tdl_pow;
+TM 2 Hz tdlint6  tdl_pos;
+TM 2 Hz tdlint6  tdl_zer;
+TM 2 Hz tdlint6  tdl_posB;
+
+TM 2 Hz tdlfloat tdl_best;	/* "best" H2O measure at the time */
+TM 2 Hz tdlfloat tdl_shortcorr;	/* corrected values for short path, long path, and 2f */
+TM 2 Hz tdlfloat tdl_longcorr;
+TM 2 Hz tdlfloat tdl_CDcorr;
+float old_tdl_best;
+
+depending on (tdl_longH2O) {
+	tdl_shortcorr = -824 + 1.160*tdl_shortH2O;
+	tdl_longcorr = -9.62 + .776*tdl_longH2O*(1 + .0003*tdl_p) + .00099*tdl_longH2O*tdl_longH2O/(1 + .00176*tdl_p);
+	tdl_CDcorr = ZeroOffset + (.778*tdl_H2OCD + .00132*tdl_H2OCD*tdl_H2OCD)/(1 + .000268*tdl_p);
+    tdl_best = tdl_longcorr;
+
+    if (tdl_longcorr < USECD) tdl_best = tdl_CDcorr;
+    if (tdl_longcorr > USEShort) tdl_best = tdl_shortcorr;
+}
+
+Group TDLgrp(tdlrec, tdl_time, tdl_shortH2O, tdl_H2OB, tdl_longH2O, tdl_H2OCD, tdl_p, tdl_t, tdl_elecT, tdl_amp, tdl_pow, tdl_pos, tdl_zer, tdl_posB ) {
+    tdlrec = tdl.rec;
+    if (tdlrec >= 0) {
+        tdl_time = tdl.time;
+        tdl_shortH2O = tdl.H2O_sh;
+        tdl_H2OB = tdl.H2O_B;
+        tdl_longH2O = tdl.H2O_lg;
+        tdl_H2OCD = tdl.H2O_CD;
+        tdl_p = tdl.p;
+        tdl_t = tdl.t;
+        tdl_elecT = tdl.t_elec;
+        tdl_amp = tdl.amp;
+        tdl_pow = tdl.pow;
+        tdl_pos = tdl.pos;
+        tdl_zer = tdl.zer;
+        tdl_posB = tdl.posB;        
+    }
+    else {
+        tdlrec = -999;
+    }
+}
+    
+depending on (2 Hz) {
+    if (maycomm_proxy != 0)  Trigger (maycomm_proxy);
+}
+

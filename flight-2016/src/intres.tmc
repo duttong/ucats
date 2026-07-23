@@ -1,0 +1,41 @@
+%{
+  int intrest = 0;
+%}
+depending on ( NotInjecting once ) {
+	if (intrest == 0) {
+		resetintfile( N2Oint ); 
+		resetintfile( CH4int );
+		resetintfile( SF6int );
+		intrest = 1;
+	}
+}
+
+/* variable to indicate when the second half of the 2-min
+   chrom has started 
+*/
+int secondhalf;
+
+depending on ( NotInjecting once ) { secondhalf = 0; }
+depending on ( Injecting1 ) { secondhalf = 0; }
+depending on ( Injecting2 ) { secondhalf = 1; }
+
+depending on ( GC_Ctr_CH1 ) {
+
+	depending on ( Injection ) {
+	
+		if (( GC_Ctr_CH1 != ECDOFFLINE ) && ( secondhalf )) {
+			integrate( 1, GC_Ctr_CH1, CH4int, CHROMtime, old_ssv2min );
+		}
+
+		if ( GC_Ctr_CH2 != ECDOFFLINE ) {
+			integrate( 1, GC_Ctr_CH2, N2Oint, CHROMtime, old_ssv1min );
+		}
+
+		if ( GC_Ctr_CH2 != ECDOFFLINE ) {
+			integrate( 1, GC_Ctr_CH2, SF6int, CHROMtime, old_ssv1min );
+		}
+
+	}
+
+}
+

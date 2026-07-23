@@ -1,0 +1,88 @@
+%{
+#include "integrate.h"
+#include "tmctime.h"
+#include "nl_dsp.h"
+
+/* make sure the defined INTPEAKS in integrate.c
+   equals the number of peaks integrated */
+
+intStruct CH4int;	/* channel 1 */
+intStruct CFC11int;	/* channel 2 */
+intStruct CFC12int;	/* channel 2 */
+intStruct N2Oint;	/* channel 3 */
+intStruct SF6int;	/* channel 3 */
+
+%}
+
+int old_ssv1min;	/* 1-min chroms */
+int old_ssv1fold;	/* 1-min wrap-around chroms */
+int old_ssv2min;	/* 2-min chroms */
+int old_ssv2fold;	/* 2-min wrap-around chroms */
+
+depending on ( NotInjecting once ) {
+
+	N2Oint.mol = "n2o";		/* molecule name used for output file */
+	N2Oint.pnum = 0;		/* peak number */
+	N2Oint.strt = 47;		/* start time */
+	N2Oint.stop = 73;		/* stop time */
+	N2Oint.calval = 332.52;	/* cal tank value */
+	N2Oint.calssv = 1;		/* ssv for cal port */
+	N2Oint.delay = 0;		/* add delay for wrap around chromatography */
+	N2Oint.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	N2Oint.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	CFC12int.mol = "cfc12";	/* molecule name used for output file */
+	CFC12int.pnum = 1;		/* peak number */
+	CFC12int.strt = 47;		/* start time */
+	CFC12int.stop = 58;		/* stop time */
+	CFC12int.calval = 482.6;	/* cal tank value */
+	CFC12int.calssv = 1;	/* ssv for cal port */
+	CFC12int.delay = 0; 	/* add delay for wrap around chromatography */
+	CFC12int.rt_a = 1.0;	/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	CFC12int.rt_b = 0.0;	/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	SF6int.mol = "sf6";		/* molecule name used for output file */
+	SF6int.pnum = 2;		/* peak number */
+	SF6int.strt = 32;		/* start time */
+	SF6int.stop = 47;		/* stop time */
+	SF6int.calval = 11.22;	/* cal tank value */
+	SF6int.calssv = 1;		/* ssv for cal port */
+	SF6int.delay = 0;		/* add delay for wrap around chromatography */
+	SF6int.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	SF6int.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	CH4int.mol = "ch4";		/* molecule name used for output file */
+	CH4int.pnum = 3;		/* peak number */
+	CH4int.strt = 4;		/* start time */
+	CH4int.stop = 22;		/* stop time */
+	CH4int.calval = 1945.7;	/* cal tank value */
+	CH4int.calssv = 1;		/* ssv for cal port */
+	CH4int.delay = 0;		/* add delay for wrap around chromatography */
+	CH4int.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	CH4int.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	CFC11int.mol = "cfc11";	/* molecule name used for output file */
+	CFC11int.pnum = 4;		/* peak number */
+	CFC11int.strt = 3;		/* start time */
+	CFC11int.stop = 20;		/* stop time */
+	CFC11int.calval = 217.0;	/* cal tank value */
+	CFC11int.calssv = 1;	/* ssv for cal port */
+	CFC11int.delay = 75; 	/* add delay for wrap around chromatography */
+	CFC11int.rt_a = 1.0;	/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	CFC11int.rt_b = 0.0;	/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+}
+
+/* triggered for two min channel */
+depending on ( Injecting1 ) {
+    old_ssv2fold = old_ssv2min;
+	old_ssv2min = ssv;
+    old_ssv1fold = old_ssv1min;
+	old_ssv1min = ssv;
+}
+
+/* triggered only for 1 min channel */
+depending on ( Injecting2 ) {
+    old_ssv1fold = old_ssv1min;
+	old_ssv1min = ssv;
+}

@@ -1,0 +1,231 @@
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+%}
+%{
+#define N2fail  20		// psi		(below this value set ECDs cold)
+
+unsigned int STATUS = 1;			// NASDAT status variable 
+unsigned int STATUS_WARNING = 0;	// used with status variable
+%}
+%{
+#include "nasdat.h"
+char nasdatMSG[NASDAT_MAXDATA];
+%}
+%{
+#include "kuband.h"
+char kuMSG[KUDATA_MAXDATA];
+%}
+%{
+#include "commands.h"
+%}
+%{
+  #include "nortlib.h"
+  #include "tma.h"
+  char ci_version[] = "$CGID: uavcmd.c: Sat Feb  8 22:35:55 2025 $";
+%}
+state (initialize);
+Validate initialize;
+state (NASDAT_eng);
+Validate NASDAT_eng;
+state (KUDATA_eng);
+Validate KUDATA_eng;
+state (FailBoard_Toggle);
+Validate FailBoard_Toggle;
+state (ShutdownComputer, Shutdown);
+Validate ShutdownComputer;
+state (part_0_idle_);
+Validate part_0_idle_;
+state (part_1_idle_);
+Validate part_1_idle_;
+state (part_2_idle_);
+Validate part_2_idle_;
+state (part_3_idle_);
+Validate part_3_idle_;
+state (part_4_idle_, ShutdownComputer_end_);
+Validate part_4_idle_;
+%{
+  tma_state initialize_cmds_[] = {
+       0, ">Telemetry Start\n",
+       2, ">Flow main channel 1 25\n",
+       3, ">Flow backflush channel 1 20\n",
+       7, ">Mode GC init\n",
+      32, ">elec reset 2\n",
+      42, ">Mode GC Init\n",
+      47, ">sample air\n",
+      47, ">solenoid samp in close\n",
+      -1, NULL
+  };
+%}
+depending on (initialize once) {
+  tma_init_state( 0, initialize_cmds_, "initialize" );
+  Validate part_0_idle_;
+}
+%{
+  tma_state NASDAT_eng_cmds_[] = {
+      -1, NULL
+  };
+%}
+depending on (NASDAT_eng once) {
+  tma_init_state( 1, NASDAT_eng_cmds_, "NASDAT_eng" );
+  Validate part_1_idle_;
+}
+depending on ( NASDAT_eng, 1 Hz ) {	
+		sprintf( nasdatMSG, "xUCATS:%02d", STATUS );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(presH_123) );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(presL_N2) );
+		nasdat_format_f( nasdatMSG, "%06.1f", convert(temp_amb) );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_N2O );
+		nasdat_format_f( nasdatMSG, "%06.2f", MR_SF6 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CFC11 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CFC12 );
+		nasdat_format_f( nasdatMSG, "%06.1f", MR_CH4 );
+		sprintf( nasdatMSG, "%s\n", nasdatMSG );
+		/* msg( 0, "** NASDAT: %s", nasdatMSG ); */
+		send2nasdat( &nasdatMSG );
+	}
+%{
+  tma_state KUDATA_eng_cmds_[] = {
+      -1, NULL
+  };
+%}
+depending on (KUDATA_eng once) {
+  tma_init_state( 2, KUDATA_eng_cmds_, "KUDATA_eng" );
+  Validate part_2_idle_;
+}
+depending on ( KUDATA_eng, 1 Hz ) {	
+		/* Edited for low bandwidth Arctic portion of SABRE, break packet into four
+		   pieces (packets 0-3) and removed variable labels. 230106 GSD
+		   Maximum packet length is set in kuband.h
+
+			For SABRE 2025:
+ 		   Plenty of bandwidth; use modified packet from DCOTSS (no ozone, H2O, etc.)
+		   Add remaining variables, get rid of setpoints, etc. to save
+		   space in packet.  Maximum packet length is set in kuband.h
+		   There are four parameters for the KUformat functions.  The first is the kuMSG
+		   array followed by text, usually a variable name and a format string.  The third
+		   is the tmc variable, the fourth is the low value.  Below this value a NaN is sent.
+		   All UCATS data are now in the single user packet for SABRE.
+		*/
+		
+		sprintf(kuMSG, "\0");
+		KUformat_f(kuMSG, "flow_M1=%6.1f", 		convert(flow_M1), 		0);
+		KUformat_f(kuMSG, "flow_BF1=%6.1f", 	convert(flow_BF1), 		0);
+		KUformat_f(kuMSG, "pres_BP1=%6.1f", 	convert(pres_BP1), 		0);
+		KUformat_f(kuMSG, "pres_ECD1=%6.1f", 	convert(pres_ECD1), 	0);
+		KUformat_f(kuMSG, "temp_SL1=%6.1f", 	convert(temp_SL1),		0);
+		KUformat_f(kuMSG, "flow_M2=%6.1f", 		convert(flow_M2), 		0);
+		KUformat_f(kuMSG, "flow_BF2=%6.1f", 	convert(flow_BF2),		0);
+		KUformat_f(kuMSG, "pres_BP2=%6.1f", 	convert(pres_BP2), 		0);
+		KUformat_f(kuMSG, "pres_ECD2=%6.1f", 	convert(pres_ECD2), 	0);
+		KUformat_f(kuMSG, "temp_SL2=%6.1f", 	convert(temp_SL2), 		0);
+		KUformat_f(kuMSG, "flow_M3=%6.1f", 		convert(flow_M3), 		0);
+		KUformat_f(kuMSG, "flow_BF3=%6.1f", 	convert(flow_BF3),		0);
+		KUformat_f(kuMSG, "pres_BP3=%6.1f", 	convert(pres_BP3), 		0);
+		KUformat_f(kuMSG, "pres_ECD3=%6.1f", 	convert(pres_ECD3), 	0);
+		KUformat_f(kuMSG, "temp_SL3=%6.1f", 	convert(temp_SL3), 		0);
+		KUformat_f(kuMSG, "pres_extern=%6.1f", 	convert(pres_extern), 	0);
+		KUformat_f(kuMSG, "presL_dope=%6.1f", 	convert(presL_dope), 	0);
+		KUformat_f(kuMSG, "presL_cal=%6.1f", 	convert(presL_cal), 	0);
+		KUformat_f(kuMSG, "presL_N2=%6.1f", 	convert(presL_N2), 		0);
+		KUformat_f(kuMSG, "presH_123=%6.1f", 	convert(presH_123), 	0);
+		KUformat_f(kuMSG, "pres_PUMP=%6.1f", 	convert(pres_PUMP), 	0);
+		KUformat_f(kuMSG, "pres_SL=%6.1f", 		convert(pres_SL), 		0);
+		KUformat_f(kuMSG, "flow_SL=%6.1f", 		convert(flow_SL), 		0);
+		KUformat_f(kuMSG, "temp_gasB_N=%6.1f",	convert(temp_gasB_N), -30);
+		KUformat_f(kuMSG, "temp_gasB_C=%6.1f", 	convert(temp_gasB_C), -30);
+		KUformat_f(kuMSG, "temp_pump=%6.1f", 	convert(temp_pump),	  -30);
+		KUformat_f(kuMSG, "temp_amb=%6.1f", 	convert(temp_amb), 	  -30);
+		KUformat_d(kuMSG, "ecdA_CH1=%ld", 		ecdA_CH1, 				0);
+		KUformat_d(kuMSG, "ecdA_CH2=%ld", 		ecdA_CH2, 				0);
+		KUformat_d(kuMSG, "ecdA_CH3=%ld", 		ecdA_CH3, 				0);
+		KUformat_f(kuMSG, "volt_5=%7.3f", 		convert(volt_5), 		0);
+		KUformat_f(kuMSG, "volt_15=%6.2f", 		convert(volt_15), 	  -20);
+		KUformat_f(kuMSG, "volt_28=%6.2f", 		convert(volt_28), 		0);
+		KUformat_f(kuMSG, "CH3_ECD=%6.1f", 		CH3_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH3_Col=%6.1f", 		CH3_Col/10., 			0);
+		KUformat_f(kuMSG, "CH3_Post=%6.1f", 	CH3_Post/10., 			0);
+		KUformat_f(kuMSG, "CH1_ECD=%6.1f", 		CH1_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH1_Col=%6.1f", 		CH1_Col/10., 			0);
+		KUformat_f(kuMSG, "CH2_ECD=%6.1f", 		CH2_ECD/10., 			0);
+		KUformat_f(kuMSG, "CH2_Col=%6.1f", 		CH2_Col/10., 			0);
+		KUformat_d(kuMSG, "GCstate=%02d", 		GCstate, 			   -1);
+		KUformat_d(kuMSG, "ssv=%d", 			ssv, 				   -2);
+		KUformat_f(kuMSG, "F11=%6.1f", 			MR_CFC11,			   -1);	
+		KUformat_f(kuMSG, "F12=%6.1f", 			MR_CFC12,			   -1);	
+		KUformat_f(kuMSG, "N2O=%6.1f", 			MR_N2O,				   -1);	
+		KUformat_f(kuMSG, "SF6=%6.2f", 			MR_SF6,				   -1);	
+		KUformat_f(kuMSG, "CH4=%6.1f", 			MR_CH4,				   -1);	
+		
+		send2kuband("eng", &kuMSG);
+	}
+%{
+  tma_state FailBoard_Toggle_cmds_[] = {
+      -1, NULL
+  };
+%}
+depending on (FailBoard_Toggle once) {
+  tma_init_state( 3, FailBoard_Toggle_cmds_, "FailBoard_Toggle" );
+  Validate part_3_idle_;
+}
+depending on ( FailBoard_Toggle, 1 Hz ) {	
+    	ADRdigSet( 0, 3, 1 ); 
+		delay(500);
+        ADRdigSet( 0, 3, 0 ); 
+	}
+%{
+  tma_state ShutdownComputer_cmds_[] = {
+       1, "#12", /* ShutdownComputer_end_ */
+      -1, NULL
+  };
+%}
+depending on (ShutdownComputer once) {
+  tma_init_state( 4, ShutdownComputer_cmds_, "ShutdownComputer" );
+  Validate part_4_idle_;
+}
+depending on ( ShutdownComputer_end_ ) { if ( InitShutdown == FALSE ) validate Shutdown; }
+%{
+  tma_state Shutdown_cmds_[] = {
+       1, ">sample air\n",
+       1, ">Shutdown\n",
+      -1, NULL
+  };
+%}
+depending on (Shutdown once) {
+  tma_init_state( 4, Shutdown_cmds_, "Shutdown" );
+  Validate part_4_idle_;
+}
+%{
+  const int tma_n_partitions = 5;
+%}
+depending on ( 1 Hz ) {
+  long int it;
+  int subcase;
+
+  it = itime();
+  ci_settime( it );
+  while ( subcase = tma_process( it ) ) {
+	switch (subcase) {
+	  case -1:
+	  case 0: break;
+	  case 1: validate initialize; break;
+	  case 2: validate NASDAT_eng; break;
+	  case 3: validate KUDATA_eng; break;
+	  case 4: validate FailBoard_Toggle; break;
+	  case 5: validate ShutdownComputer; break;
+	  case 6: validate Shutdown; break;
+	  case 7: validate part_0_idle_; break;
+	  case 8: validate part_1_idle_; break;
+	  case 9: validate part_2_idle_; break;
+	  case 10: validate part_3_idle_; break;
+	  case 11: validate part_4_idle_; break;
+	  case 12: validate ShutdownComputer_end_; break;
+	  default:
+		nl_error( 1, "Unexpected return value from tma_process" );
+		break;
+	}
+  }
+}

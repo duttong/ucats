@@ -1,0 +1,24 @@
+/* Bit type definitions */
+TM typedef adrD DigBit { text "%1d"; }
+TM typedef DigBit Bit_HI_LO { text "" HI_LO_text[]; }
+TM typedef DigBit Bit_Op_Cl { text "" Op_Cl_text[]; }
+TM typedef DigBit Bit_Cl_Op { text "" Cl_Op_text[]; }
+TM typedef DigBit Bit_On_Off { text "" On_Off_text[]; }
+TM typedef DigBit Bit_Air_Cal { text "" Air_Cal_text[]; }
+
+/* This is a digital in bit.  Once set it will trigger 
+   the shutdown proceedure in uav.tma
+*/
+TM 1 Hz Bit_HI_LO InitShutdown; 	Address InitShutdown  00;
+
+/* Manual switch bit for trigger flight sequence (see uav.tma) */
+TM 1 Hz Bit_HI_LO ManSwitch; 		Address ManSwitch  01;
+TM 1 Hz Bit_HI_LO KeySwitch; 		Address KeySwitch  03;
+
+TM 1 Hz Bit_On_Off PumpSwitch;   Address PumpSwitch   02;
+TM 1 Hz Bit_Cl_Op N2_IN;         Address N2_IN        04;
+
+/* Solenoid control used in place of SSV */
+TM 1 Hz Bit_Air_Cal ssv;         Address ssv          05;
+TM 1 Hz Bit_Op_Cl SLoopIN;       Address SLoopIN      06;
+TM 1 Hz Bit_Cl_Op SLoopOUT;      Address SLoopOUT     07;

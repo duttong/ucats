@@ -1,0 +1,10 @@
+# GSE script for UAV 2-channel GC
+batchfile interact.ser
+display uavdisp main h2o
+client uavclt
+#serin -t "baud=9600 +sane -osflow -ihflow -ohflow -lkhflow" /dev/ser1
+rtg /home/uav/flight/uav.rtg
+algorithm uavalgo -l -p
+colorconfig normal.cfg
+memo
+extraction lgr -z30000 `lfctr -O`

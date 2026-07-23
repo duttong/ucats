@@ -1,0 +1,83 @@
+Command_Set = 'A'
+Proxy gsvCH1 {
+ I: gsv channel 1 Inject
+ L: gsv channel 1 Load
+}
+Proxy mainCH1 {
+ a: flow main channel 1 160	
+ b: flow main channel 1 110
+ c: flow main channel 1 110
+ d: flow main channel 1 110
+ e: flow main channel 1 30
+ f: flow main channel 1 30
+}
+Proxy bfCH1 {
+ a: flow backflush channel 1 10
+ b: flow backflush channel 1 90
+ c: flow backflush channel 1 90
+ d: flow backflush channel 1 15
+ e: flow backflush channel 1 30
+}
+Proxy bfprsCH1 {
+ a: Press backflush channel 1 Setpoint 25
+ b: Press backflush channel 1 Setpoint 80
+ c: Press backflush channel 1 Setpoint 60
+ d: Press backflush channel 1 Setpoint 60
+ e: Press backflush channel 1 Setpoint 65
+}
+Proxy gsvCH2 {
+ I: gsv channel 2 Inject
+ L: gsv channel 2 Load
+}
+Proxy mainCH2 {
+ a: flow main channel 2 120
+ b: flow main channel 2 95
+ c: flow main channel 2 95
+ d: flow main channel 2 95
+ e: flow main channel 2 30
+}
+Proxy bfCH2 {
+ a: flow backflush channel 2 10
+ b: flow backflush channel 2 120
+ c: flow backflush channel 2 100
+ d: flow backflush channel 2 100
+ e: flow backflush channel 2 30
+}
+Proxy bfprsCH2 {
+ a: Press backflush channel 2 Setpoint 25
+ b: Press backflush channel 2 Setpoint 77
+ c: Press backflush channel 2 Setpoint 75
+ d: Press backflush channel 2 Setpoint 75
+ e: Press backflush channel 2 Setpoint 65
+}
+Proxy gsvCH3 {
+ I: gsv channel 3 Inject
+ L: gsv channel 3 Load
+}
+Proxy mainCH3 {
+ a: flow main channel 3 75
+ b: flow main channel 3 55
+ c: flow main channel 3 55
+ d: flow main channel 3 55
+ e: flow main channel 3 30
+}
+Proxy bfCH3 {
+ a: flow backflush channel 3 10
+ b: flow backflush channel 3 95
+ c: flow backflush channel 3 45
+ d: flow backflush channel 3 45
+ e: flow backflush channel 3 30
+}
+Proxy elecCH1 {
+ i: elec bias 1 5
+ o: elec bias NULL
+}
+Proxy elecCH2 {
+ i: elec bias 2 12
+ o: elec bias NULL
+}
+Proxy elecCH3 {
+ i: elec bias 3 100
+ j: elec bias 3 010
+ o: elec bias NULL
+}

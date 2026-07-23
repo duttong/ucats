@@ -1,0 +1,18 @@
+/* Bit text definitions */
+%{
+  char * Air_Cal_text[3] = { "Air", "Cal", "---" };
+  char * HI_LO_text[2] = { "LO", "HI" };
+  char * Op_Cl_text[3] = { " Open", "Close", "-----" };
+  char * Cl_Op_text[3] = { "Close", " Open", "-----" };
+  char * On_Off_text[3] = { "Off", " On", "---" };
+  char * Offline_text[2] = { "---", "---" };
+  char * SrtSequence_off_text[2] = { "   Off", "SrtSeq" };
+  char * Load_Inject_text[3] = { " Load ", "Inject" ,"ERROR " };
+  char * Inject_Load_text[3] = { "Inject", " Load " ,"ERROR " };
+  char * Inj1_Inj2_text[3] = { "Inj1 ", "Inj2 ", "ERROR" };
+  char * Inj2_Inj1_text[3] = { "Inj2 ", "Inj1 ", "ERROR" };
+  char * BF_IN_text[2] = { "IN", "BF" };
+  char * IN_BF_text[2] = { "BF", "IN" };
+  char * Heat_Cool_text[2] = { "Heat", "Cool" };
+  char * GCstate_text[3] = { "No Injections", " Start Inject", "             " };
+%}

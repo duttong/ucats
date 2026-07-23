@@ -1,0 +1,61 @@
+%{
+#include "integrate.h"
+#include "tmctime.h"
+#include "nl_dsp.h"
+
+/* make sure the defined INTPEAKS in integrate.c
+   equals the number of peaks integrated */
+
+intStruct N2Oint;	/* channel 2 */
+intStruct CH4int;	/* channel 1 */
+intStruct SF6int;	/* channel 2 */
+
+%}
+
+int old_ssv1min;	/* 1-min chroms */
+int old_ssv2min;	/* 2-min chroms */
+
+depending on ( NotInjecting once ) {
+
+	N2Oint.mol = "n2o";		/* molecule name used for output file */
+	N2Oint.pnum = 0;		/* peak number */
+	N2Oint.strt = 43;		/* start time */
+	N2Oint.stop = 67;		/* stop time */
+	N2Oint.calval = 328.73;	/* cal tank value */
+	N2Oint.calssv = 1;		/* ssv for cal port */
+	N2Oint.delay = 0;		/* add delay for wrap around chromatography */
+	N2Oint.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	N2Oint.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	CH4int.mol = "ch4";		/* molecule name used for output file */
+	CH4int.pnum = 1;		/* peak number */
+	CH4int.strt = 3;		/* start time */
+	CH4int.stop = 25;		/* stop time */
+	CH4int.calval = 1914.5;	/* cal tank value */
+	CH4int.calssv = 1;		/* ssv for cal port */
+	CH4int.delay = 70;		/* add delay for wrap around chromatography */
+	CH4int.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	CH4int.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+	SF6int.mol = "sf6";		/* molecule name used for output file */
+	SF6int.pnum = 2;		/* peak number */
+	SF6int.strt = 30;		/* start time */
+	SF6int.stop = 43;		/* stop time */
+	SF6int.calval = 9.024;	/* cal tank value */
+	SF6int.calssv = 1;		/* ssv for cal port */
+	SF6int.delay = 0;		/* add delay for wrap around chromatography */
+	SF6int.rt_a = 1.0;		/* use to calibrate 1-pt real-time int to post-proc int (slope) */
+	SF6int.rt_b = 0.0;		/* use to calibrate 1-pt real-time int to post-proc int (intercept) */
+
+}
+
+/* triggered for two min channel */
+depending on ( Injecting1 ) {
+	old_ssv2min = ssv;
+	old_ssv1min = ssv;
+}
+
+/* triggered only for 1 min channel */
+depending on ( Injecting2 ) {
+	old_ssv1min = ssv;
+}

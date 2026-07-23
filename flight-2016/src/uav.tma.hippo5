@@ -1,0 +1,177 @@
+%{
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include "nortlib.h"
+	#include "globmsg.h"
+%}
+
+State initialize  {
+	     > Telemetry Start
+	     > Pump Off
+	+15	 > Mode GC Init
+	 +5  > sample air
+     +1  validate Warmup;
+}
+
+%{
+#define NUMAIRINJ 	7		// number of air injections between cal injections
+#define NUMCALINJ 	1		// number of cal injections between air injections
+
+#define PumpOFF 	830		// mbar		(pump off at greater than this press)
+#define PumpON  	740		// mbar		(pump on at less than this press)
+#define HOT_ECD1	330		// C 		(temp ECD1 needs to be before injects )
+#define HOT_ECD2	330		// C 		(temp ECD2 needs to be before injects )
+#define N2fail  	40		// psi		(below this value set ECDs cold)
+
+unsigned int AirCount = 0;
+unsigned int CalCount = 0;
+
+unsigned int STATUS = 1;			// NASDAT status variable 
+unsigned int STATUS_WARNING = 0;	// used with status variable
+%}
+
+State Warmup {
+	{ if (( CH2_ECD/10 > HOT_ECD2 ) || ( CH1_ECD/10 > HOT_ECD1 ))
+		Validate GCReady;
+	}
+}
+
+State GCReady {
+		{ msg( 0, "Ready for injections." ); }
+	+1  > solenoid Samp Out Open
+	    > solenoid Samp In Open
+		Validate SSVtableInit;
+}
+
+
+PARTITION
+State Idle {}
+
+State SSVtableInit {
+
+	depending on ( Injecting2 ) { 
+		Validate SSVtable;
+	}
+}
+
+State SSVtable {
+
+	depending on ( 1 Hz ) {
+		depending on ( Injecting1 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+
+		depending on ( Injecting2 ) { 
+			if ( CalCount < NUMCALINJ ) 
+				Validate CALnext;
+			else  
+				Validate AIRnext;
+		}
+		
+		depending on ( NotInjecting ) {
+			AirCount = 0;
+			CalCount = 0;
+			Validate SSVtableInit;
+		}
+
+	}	
+}
+
+State AIRnext {
+	+2 > Sample Air
+	   { if ( ++AirCount == NUMAIRINJ ) {
+			AirCount = 0;
+			CalCount = 0;
+		 }
+	   }
+	   { STATUS = 1 + 2 + STATUS_WARNING; }
+	+1 Validate SSVtable;
+}
+
+State CALnext {
+	+2 > Sample Cal
+	   { if ( ++CalCount == NUMCALINJ ) CalCount = 500; }
+	   { STATUS = 1 + 2 + 4 + STATUS_WARNING; }
+	+1 Validate SSVtable;
+}
+
+
+# The following partition sends data to the REVEAL or GV console.
+%{
+#include "reveal.h"
+int send2reveal( char * Smsg );
+char revealMSG[REVEAL_MAXDATA];
+%}
+
+PARTITION
+State REVEAL_h2o {
+	{	if ( tdlbH2O > -5 ) {
+	  		sprintf ( revealMSG, "xUWV:%08.1f", tdlbH2O );
+			send2reveal( &revealMSG );
+			/* msg( 0, "** REVEAL: %s", revealMSG ); */
+		}
+	}
+}
+
+PARTITION
+State REVEAL_o3 {
+	depending on ( 1/10 Hz ) {
+		if ( o3best > -999 ) {
+	  		sprintf ( revealMSG, "xUOZ:%06.1f", o3best );
+			send2reveal( &revealMSG );
+			/* msg( 0, "** REVEAL: %s", revealMSG ); */
+		}
+	}
+}
+
+PARTITION
+State REVEAL_int {
+	depending on ( Injecting1 ) {
+		sprintf ( revealMSG, "xUMR:%06.1f,%06.1f", MR_N2O, MR_CH4 );
+		send2reveal( &revealMSG );
+	}
+	depending on ( Injecting2 ) {
+		sprintf ( revealMSG, "xUMR:%06.1f,%06.1f", MR_N2O, MR_CH4 );
+		send2reveal( &revealMSG );
+	}
+}
+
+#  This partition monitors the N2 carrier gas.  If the N2 regulator
+#  pressure on the lowside is below N2fail the ECDs will be set
+#  to a cold setting.
+%{
+unsigned int N2lowCount = 0;
+unsigned int MAXN2LOWCNTS = 10;
+%}
+PARTITION
+State CheckCarrier {
+	+10	{ if ( (convert(presL_N2) < N2fail) && (convert(presL_N2) > 0) ) {
+			msg( -2, "** (%d) LOW N2 Pressure (presL_N2 = %f)", N2lowCount, convert(presL_N2) );
+			if ( ++N2lowCount >= MAXN2LOWCNTS ) 
+				Validate SetECDsCold; 
+		  }
+		  else if ( convert(presL_N2) >= N2fail ) 
+			N2lowCount = 0; 
+		}
+}
+
+State SetECDsCold {
+#	+1	> Omega change SP1 CH1 ECD 10
+#	+1  > Omega change SP1 CH2 ECD 10
+}
+
+
+#  This partition looks at the digin bit InitShutdown (see
+#  digital.tmc).  Once set, the Shutdown proceedure is called.
+# PARTITION
+# State ShutdownComputer {
+#	+1	{ if ( InitShutdown == FALSE ) validate Shutdown; }
+# }
+#
+# State Shutdown {
+#	> Shutdown
+# }

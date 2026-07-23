@@ -1,0 +1,41 @@
+%{
+#include <sys/types.h>
+#include "vaisala.h"
+pid_t vaisala_proxy = 0;
+
+RHstruct vai;
+
+%}
+
+state ( VaisalaInc, VaisalaTog );
+validate VaisalaInc;
+
+TM 1 Hz ULONG vaisX;
+vaisX++;
+
+depending on ( 1 Hz ) {
+	depending on ( VaisalaTog ) { validate VaisalaInc; }
+
+	if ( vaisX >= 120 ) { 
+		vaisX = 0;
+		validate VaisalaTog;
+	}
+}
+
+TM "proxy" vaisala_proxy 13;
+TM "Receive" vai 0;
+
+TM typedef float vaifloat { text "%6.1f"; }
+
+TM 1 Hz vaifloat vaiRH; 
+TM 1 Hz vaifloat vaiT; 
+
+Group vaigroup ( vaiRH, vaiT ) {
+	vaiRH = 	vai.rh;
+	vaiT  = 	vai.t;
+}
+	
+depending on ( 1 Hz ) {
+	if (vaisala_proxy != 0)  Trigger ( vaisala_proxy );
+}
+

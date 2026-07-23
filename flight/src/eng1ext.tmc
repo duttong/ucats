@@ -1,0 +1,105 @@
+%{ /* edf2ext.awk reading eng1.edf */
+  #include <stdlib.h>
+  #include "ssp.h"
+  #include "tmctime.h"
+
+  #define Ct24_Long(x) (0xFFFFFF & *(TMLONG *)&x)
+  #define Ct24_Double(x) (double)Ct24_Long(x)
+  #define To_Double(x) (double)(x)
+  #define EXTRACTION_INIT initialize()
+  #define EXTRACTION_TERM terminate()
+  #define ALL_SPSS
+
+  static double ext_delta = 0.;
+
+  static sps_ptr edf_ss_open( char *name, int width ) {
+	sps_ptr ss;
+
+	ss = ss_open( name );
+	if ( ss_error( ss ) ) {
+	  ss = ss_create( name, SPT_INCREASING, width, 0 );
+	  if ( ss_error( ss ) )
+	    msg( 3, "Unable to create spreadsheet %s", name );
+	  errno = 0;
+	  msg( 0, "Creating spreadsheet %s.sps", name );
+	} else if ( ss_width( ss ) != width )
+	  msg( 3,
+	    "Existing spreadsheet %s.sps not of width %d", width );
+	else msg( 0, "Appending to spreadsheet %s.sps", name );
+	return ss;
+  }
+
+  sps_ptr eng1;
+  void initialize(void) {
+	{
+	  char *s;
+	  s = getenv("EXT_DELTA");
+	  if (s != NULL) {
+		ext_delta=atof(s);
+		msg(MSG, "Using Time Delta of %lf", ext_delta);
+	  }
+	}
+	eng1 = edf_ss_open( "eng1", 28 );
+	ss_set_column(eng1, 0, "%14.11lt", "Time");
+	ss_set_column(eng1, 1, "%12.1f", "flow_M1");
+	ss_set_column(eng1, 2, "%12.1f", "flow_M1_sp");
+	ss_set_column(eng1, 3, "%12.1f", "flow_BF1");
+	ss_set_column(eng1, 4, "%12.1f", "flow_BF1_sp");
+	ss_set_column(eng1, 5, "%12.1f", "pres_BP1");
+	ss_set_column(eng1, 6, "%12.1f", "pres_BP1_sp");
+	ss_set_column(eng1, 7, "%12.1f", "pres_SL");
+	ss_set_column(eng1, 8, "%12.1f", "temp_gasB_N");
+	ss_set_column(eng1, 9, "%12.1f", "temp_SL1");
+	ss_set_column(eng1, 10, "%12.1f", "temp_gasB_C");
+	ss_set_column(eng1, 11, "%12.1f", "flow_SL");
+	ss_set_column(eng1, 12, "%12.1f", "flow_M2");
+	ss_set_column(eng1, 13, "%12.1f", "flow_M2_sp");
+	ss_set_column(eng1, 14, "%12.1f", "flow_BF2");
+	ss_set_column(eng1, 15, "%12.1f", "flow_BF2_sp");
+	ss_set_column(eng1, 16, "%12.1f", "pres_PUMP");
+	ss_set_column(eng1, 17, "%12.1f", "pres_BP2_sp");
+	ss_set_column(eng1, 18, "%12.1f", "pres_ECD2");
+	ss_set_column(eng1, 19, "%12.1f", "flow_M3");
+	ss_set_column(eng1, 20, "%12.1f", "flow_M3_sp");
+	ss_set_column(eng1, 21, "%12.1f", "flow_BF3");
+	ss_set_column(eng1, 22, "%12.1f", "flow_BF3_sp");
+	ss_set_column(eng1, 23, "%12.1f", "pres_ECD3");
+	ss_set_column(eng1, 24, "%12.1f", "temp_SL3");
+	ss_set_column(eng1, 25, "%12.1f", "ecdA_CH1");
+	ss_set_column(eng1, 26, "%12.1f", "ecdA_CH2");
+	ss_set_column(eng1, 27, "%12.1f", "ecdA_CH3");
+  }
+  void terminate(void) {
+	ss_close(eng1);
+  }
+%}
+{
+  ss_insert_value(eng1, dtime()+ext_delta, 0);
+  ss_set(eng1, 1, convert( flow_M1));
+  ss_set(eng1, 2, convert( flow_M1_sp));
+  ss_set(eng1, 3, convert( flow_BF1));
+  ss_set(eng1, 4, convert( flow_BF1_sp));
+  ss_set(eng1, 5, convert( pres_BP1));
+  ss_set(eng1, 6, convert( pres_BP1_sp));
+  ss_set(eng1, 7, convert( pres_SL));
+  ss_set(eng1, 8, convert( temp_gasB_N));
+  ss_set(eng1, 9, convert( temp_SL1));
+  ss_set(eng1, 10, convert( temp_gasB_C));
+  ss_set(eng1, 11, convert( flow_SL));
+  ss_set(eng1, 12, convert( flow_M2));
+  ss_set(eng1, 13, convert( flow_M2_sp));
+  ss_set(eng1, 14, convert( flow_BF2));
+  ss_set(eng1, 15, convert( flow_BF2_sp));
+  ss_set(eng1, 16, convert( pres_PUMP));
+  ss_set(eng1, 17, convert( pres_BP2_sp));
+  ss_set(eng1, 18, convert( pres_ECD2));
+  ss_set(eng1, 19, convert( flow_M3));
+  ss_set(eng1, 20, convert( flow_M3_sp));
+  ss_set(eng1, 21, convert( flow_BF3));
+  ss_set(eng1, 22, convert( flow_BF3_sp));
+  ss_set(eng1, 23, convert( pres_ECD3));
+  ss_set(eng1, 24, convert( temp_SL3));
+  ss_set(eng1, 25, convert( ecdA_CH1));
+  ss_set(eng1, 26, convert( ecdA_CH2));
+  ss_set(eng1, 27, convert( ecdA_CH3));
+}

@@ -1,0 +1,132 @@
+#! /bin/sh
+#__USAGE
+#%C
+#	Starts Instrument operation, including
+#	  rdr
+#	  display uavdisp
+#	  extraction intext
+#	  extraction gcitxext
+#	  extraction eng1ext
+#	  extraction eng2ext
+#	  extraction h2oext
+#	  extraction o3ext
+#	  algorithm uavalgo
+#	  client PBclt
+#	  command log
+#	  rtg
+
+#----------------------------------------------------------------
+# Perform Common Initializations
+#----------------------------------------------------------------
+boilerplate=mkdoit2.sh
+for dir in /usr/local/lib/src /usr/local/bin /usr/lib; do
+  if [ -f $dir/$boilerplate ]; then
+	boilerplate=$dir/$boilerplate
+	break
+  fi
+done
+[ ! -f $boilerplate ] && {
+  echo Cannot locate boilerplate script $boilerplate >&2
+  exit 1
+}
+LocalRing="PB"
+. $boilerplate
+
+#----------------------------------------------------------------
+# Allocate Screens
+#----------------------------------------------------------------
+typeset _scr1 _scr2 _scr3
+if [ -n "$_scrdefs" ]; then
+  eval `getcon $condev _scr1 _scr2 _scr3`
+elif [ $winrunning = yes ]; then
+  exec on -t $condev $0 -W $*
+else
+  eval `getcon $condev _scr2 _scr3`
+  _scr1=$_scr0
+fi
+[ -z "$_scr3" ] && nl_error Unable to allocate enough screens
+[ $winrunning = yes ] && {
+  winsetsize $_scr0 8 45 `basename $0`
+  echo Allocating Screens > $_scr0
+  winsetsize $_scr1 33 79 main
+  echo "\033/2t \r\c" > $_scr1
+  winsetsize $_scr2 11 57 h2o
+  echo "\033/2t \r\c" > $_scr2
+  escq="\033\""
+  logf="$RemEx.$LocalRing.log\""
+  echo "${escq}t$logf${escq}i$logf${escq}p$logf\033/2t \r\c" >$_scr3
+}
+
+#----------------------------------------------------------------
+# Instrument Startup Sequence
+#----------------------------------------------------------------
+[ -z "$_doit_basedir" ] && _doit_basedir=.
+memo -vy -e $_doit_basedir/$RemEx.$LocalRing.log &
+namewait -p $! memo || nl_error Error launching memo
+rdr -vc0 -d $* -n 9 &
+namewait -p $! -g dg || nl_error Error launching rdr
+
+_msgopts="-v -c$FlightNode"
+_dcopts=""
+_cmdopts="-C$FlightNode"
+
+#----------------------------------------------------------------
+# Startup Memo Log Window
+#----------------------------------------------------------------
+on -t $_scr3 less +F $_doit_basedir/$RemEx.$LocalRing.log
+[ $winrunning = yes ] && echo "\033/1t\c" > $_scr3
+getcon -r $_scr3
+start_rtg /home/uav/flight/uav.rtg
+
+typeset _cfgfile
+if [ -z "$MONOCHROME" ]; then
+  _attrs=02,06,04,05
+  _cfgfile=normal.cfg
+fi
+
+
+#----------------------------------------------------------------
+# Data Regulator (Must be first after DG)
+#----------------------------------------------------------------
+PBreg $_msgopts $_dcopts -h Reg &
+namewait -p $! PBreg || nl_error Error launching PBreg
+
+
+#----------------------------------------------------------------
+# Display Programs:
+#----------------------------------------------------------------
+scrpaint $_msgopts main $_cfgfile > $_scr1 < $_scr1; stty +opost < $_scr1
+[ $winrunning = yes ] && echo "\033/1t\c" > $_scr1
+scrpaint $_msgopts h2o $_cfgfile > $_scr2 < $_scr2; stty +opost < $_scr2
+[ $winrunning = yes ] && echo "\033/1t\c" > $_scr2
+uavdisp $_msgopts $_dcopts -A $_scr1 -a $_scr2 &
+[ $winrunning = yes ] && echo "\033/2t\c"
+
+#----------------------------------------------------------------
+# Extraction Programs:
+#----------------------------------------------------------------
+intext $_msgopts $_dcopts -l &
+gcitxext $_msgopts $_dcopts -l &
+eng1ext $_msgopts $_dcopts -l &
+eng2ext $_msgopts $_dcopts -l &
+h2oext $_msgopts $_dcopts -l &
+o3ext $_msgopts $_dcopts -l &
+
+#----------------------------------------------------------------
+# Algorithms:
+#----------------------------------------------------------------
+uavalgo $_msgopts $_dcopts $_cmdopts -l &
+
+#----------------------------------------------------------------
+# Keyboard Client:
+#----------------------------------------------------------------
+PBclt $_msgopts $_cmdopts -A $_scr1 -a $_scr2
+slay -t /${_scr3#//*/} less
+memo -vk0
+if [ $winrunning = yes ]; then
+  _scrs=""
+  echo "\033/1t\033/5tShutting Down..."
+else
+  _scrs=" $_scr0 $_scr1 $_scr2 $_scr3"
+fi
+exec parent -qvnt3 $_scrs

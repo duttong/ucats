@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+if test -c /dev/ser1; then
+	stty +raw </dev/ser1
+	stty +sane -osflow -ihflow -ohflow -lkhflow </dev/ser1
+#	stty baud=4800 </dev/ser1
+	stty baud=9600 </dev/ser1
+fi
+
+if test -c /dev/ser2; then
+	stty +raw </dev/ser2
+	stty +sane -osflow -ihflow -ohflow -lkhflow </dev/ser2
+#	stty baud=4800 </dev/ser2
+	stty baud=9600 </dev/ser2
+fi

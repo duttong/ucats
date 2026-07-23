@@ -1,0 +1,69 @@
+%{
+  #define N_INJS_PER_FILE 1
+%}
+
+UINT CurrInj_, CurrFile_, N_Inj_in_File_, Injected_;
+
+Collect CurrInj = CurrInj_;
+Collect CurrFile = CurrFile_;
+
+%{
+  #include <ctype.h>
+  static UINT read_gcnum( FILE *fp ) {
+    int c;
+	UINT v = 0;
+	
+    c = getc(fp);
+	while ( isspace(c) ) c = getc(fp);
+	while ( isdigit(c) ) {
+	  v = v*10 + c - '0';
+	  c = getc(fp);
+	}
+	return v;
+  }
+
+  void read_gcfile( UINT *injno, UINT *fileno ) {
+	FILE *fp;
+	
+	fp = fopen( "GCFILE.CFG", "r" );
+	if ( fp != 0 ) {
+	  *injno = read_gcnum( fp );
+	  *fileno = read_gcnum( fp );
+	  fclose( fp );
+	}
+  }
+
+  void write_gcfile( UINT injno, UINT fileno ) {
+	FILE *fp;
+	
+	fp = fopen( "GCFILE.CFG", "w" );
+	fprintf( fp, "%u\n%u\n\n\n", injno, fileno );
+	fclose( fp );
+  }
+
+
+%}
+
+if ((GCstate == 1) || (GCstate == 3)) {
+  if ( CurrFile_ == 0 )
+	read_gcfile( &CurrInj_, &CurrFile_ );
+  CurrInj_++;
+  if ( N_Inj_in_File_ == N_INJS_PER_FILE-1 ) {
+    N_Inj_in_File_ = 0;
+	CurrFile_++;
+  } else N_Inj_in_File_++;
+  write_gcfile( CurrInj_, CurrFile_ );
+}
+
+
+/* The following are definitions for a shared-memory method
+   of getting data from SOLDRV. I don't recommend this method
+   for other purposes, but SOLDRV uses it, so we use it here.
+*/
+%{
+  static char nullregion[1];
+  static unsigned char far *GCstatePtr = &nullregion;
+%}
+
+TM "pointer" GCstatePtr 4; /* 4 is a magic number for SOLDRV_A */
+Collect GCstate = *GCstatePtr;

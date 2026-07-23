@@ -1,0 +1,61 @@
+Command_Set = 'A'
+Proxy gsvCH2 {
+ I: gsv channel 2 Inject
+ L: gsv channel 2 Load
+}
+Proxy mainCH2 {
+ a: flow main channel 2 75
+ b: flow main channel 2 75
+ c: flow main channel 2 75
+ d: flow main channel 2 75
+ e: flow main channel 2 40
+}
+Proxy bfCH2 {
+ a: flow backflush channel 2 5
+ b: flow backflush channel 2 60
+ c: flow backflush channel 2 60
+ d: flow backflush channel 2 60
+ e: flow backflush channel 2 30
+}
+Proxy bfprsCH2 {
+ a: Press channel 2 Setpoint 12
+ b: Press channel 2 Setpoint 20
+ c: Press channel 2 Setpoint 20 
+ d: Press channel 2 Setpoint 20
+ e: Press channel 2 Setpoint 20
+}
+Proxy gsvCH1 {
+ I: gsv channel 1 Inject
+ L: gsv channel 1 Load
+}
+Proxy mainCH1 {
+ a: flow main channel 1 120
+ b: flow main channel 1 41
+ c: flow main channel 1 43
+ d: flow main channel 1 44
+ e: flow main channel 1 45
+ f: flow main channel 1 55
+}
+Proxy bfCH1 {
+ a: flow backflush channel 1 40
+ b: flow backflush channel 1 150
+ c: flow backflush channel 1 100
+ d: flow backflush channel 1 100
+ e: flow backflush channel 1 40
+}
+Proxy bfprsCH1 {
+ a: Press channel 1 Setpoint 12
+ b: Press channel 1 Setpoint 20
+ c: Press channel 1 Setpoint 20 
+ d: Press channel 1 Setpoint 20
+ e: Press channel 1 Setpoint 20
+}
+Proxy elecCH2 {
+ i: elec bias 2 100
+ j: elec bias 2 010
+ o: elec bias NULL
+}
+Proxy elecCH1 {
+ i: elec bias 1 040
+ o: elec bias NULL
+}
