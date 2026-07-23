@@ -4,3 +4,14 @@ __pycache__/
 .DS_Store
 *.out
 *.tgz
+
+# compiled QNX driver/flight binaries (no useful extension to glob on
+# otherwise) -- source counterparts (e.g. calalgo.c, eng1ext.c) are
+# unaffected since they don't end in these bare suffixes.
+*algo
+*ext
+*clt
+*.rtg
+*.oui
+flight/bin/
+flight-2016/bin/
