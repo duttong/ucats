@@ -81,6 +81,7 @@ class Instrument_UCATS:
         self.setup = self._load_yaml(setup_file)
         self.verbose = verbose
         self.mode = self.config.get('mode', 'flight')     # 'flight' | 'calibration' -- see config.yaml
+        self.boot_t0 = time()      # for write_itx()'s CUMSEC note field -- flight/src/base.tmc's 1Hz uptime counter
 
         setup_logging(self.config['paths']['log_dir'], verbose)
 
@@ -342,14 +343,35 @@ class Instrument_UCATS:
                 f.write(s + '\n')
             f.write('END\n')
 
-            timestr = f'{tinj.tm_hour:02}:{tinj.tm_min:02}:{tinj.tm_sec:02}'
-            datestr = f'{tinj.tm_mon:02}-{tinj.tm_mday:02}-{tinj.tm_year:04}'
-            for ch in wave_names:
-                note = f'X note {ch}, " 1; 0; {timestr}; {datestr}; {selpos}; {INSTRUMENT_CODE};"'
+            # Wave-note fields match flight/src/gcitx.tmc's itx_aux_data_init()/
+            # itx_aux_data() calls exactly: channel#; CUMSEC; time; date; ssv;
+            # valv_calSSV; pres_SL; temp_SL1; temp_SL2; temp_SL3. gcitx.c uses
+            # localtime() for the note's time/date (unlike the UTC-based ITX
+            # filename/wave-name counter above -- tinjl, not tinj).
+            timestr = f'{tinjl.tm_hour:02}:{tinjl.tm_min:02}:{tinjl.tm_sec:02}'
+            datestr = f'{tinjl.tm_mon:02}-{tinjl.tm_mday:02}-{tinjl.tm_year:04}'
+            cumsec = int(time() - self.boot_t0)
+            ssv = self._itx_note_field(self.adr.data.get('ssv', 'NaN'), fmt='')
+            calssv = self._itx_note_field(
+                self.cal_ssv.cp(blocking=False) if self.cal_ssv is not None else 'NaN', fmt='')
+            pres_SL = self._itx_note_field(self.adr.data.get('pres_SL', 'NaN'))
+            temp_SL = [self._itx_note_field(self.adr.data.get(f'temp_SL{i}', 'NaN')) for i in (1, 2, 3)]
+
+            for i, ch in enumerate(wave_names, start=1):
+                fields = [i, cumsec, timestr, datestr, ssv, calssv, pres_SL, *temp_SL]
+                note = f'X note {ch}, " {"; ".join(str(v) for v in fields)}"'
                 f.write(note + '\n')
 
             hz = 1.0 / DETECTOR_HZ
             f.write(f'X SetScale /P x, 0, {hz:0.4}, {chs}\n')
+
+    @staticmethod
+    def _itx_note_field(value, fmt='.1f'):
+        """ Format one ITX wave-note field, matching gcitx.c's gcvt()/itoa()
+            behavior: real numbers get formatted, missing/non-numeric data
+            (e.g. before the ADR2000 driver's first poll) falls back to the
+            raw value so the note still has the right number of fields. """
+        return f'{value:{fmt}}' if isinstance(value, (int, float)) else str(value)
 
     # ------------------------------------------------------------------
     # engineering data + telemetry, modeled on ucats-b's collect_data tick

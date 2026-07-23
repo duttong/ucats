@@ -92,7 +92,29 @@ devices:
       heartbeat: [0, 3, out]  # confirmed: digital.tmc "FailDummy", board 0 channel 3 (address 03)
       pump: [1, 2, out]       # confirmed: digital.tmc PumpSwitch, board 1 channel 2 (address 12)
       nitrogen: [0, 5, out]   # confirmed: digital.tmc N2_IN, board 0 channel 5 (address 05)
-    a2d: {}
+    # pres_SL/temp_SL1/temp_SL2/temp_SL3: sample-loop pressure and per-channel
+    # sample-loop temperature, confirmed addresses from flight/src/analog.tmc
+    # ("Common 0" board's pres_SL, Address 00; temp_SL1/2/3, Address 15/25/35
+    # -- board*10+channel, same encoding as the dac board/channel note below,
+    # but a2d channels are used 0-indexed directly by adr2000.py's
+    # apply_calcurves(), no dac-style 0/1->1/2 remap). Added so ucats.py's
+    # write_itx() can match the legacy ITX wave-note fields (see gcitx.tmc).
+    #
+    # calib is [slope, intercept] for numpy.polyval(calib, volts), converting
+    # the 0-5V analog input to engineering units (reverse direction of the
+    # dac calib above). temp_SL*'s CELS calibration in analog.tmc is a clean
+    # 2-point line (0V=99C, 5V=-44C). pres_SL's MBARpnuSL calibration is
+    # actually 3-segment piecewise (0.02V=724mbar, 4.5V=1276mbar,
+    # 5V=1337mbar) -- polyval only supports a single polynomial, so the
+    # calib below is a linear fit through the dominant 0.02-4.5V segment
+    # (slope (1276-724)/(4.5-0.02)=123.214, intercept 724-123.214*0.02=
+    # 721.536); accuracy degrades above ~4.5V (1276mbar). Exact piecewise
+    # interpolation would need adr2000.py changes -- not done here.
+    a2d:
+      pres_SL: [0, 0, [123.214, 721.536]]  # analog.tmc: pres_SL, Address 00 (board 0, chan 0) -- linear approx, see note above
+      temp_SL1: [1, 5, [-28.6, 99]]        # analog.tmc: temp_SL1, Address 15 (board 1, chan 5)
+      temp_SL2: [2, 5, [-28.6, 99]]        # analog.tmc: temp_SL2, Address 25 (board 2, chan 5)
+      temp_SL3: [3, 5, [-28.6, 99]]        # analog.tmc: temp_SL3, Address 35 (board 3, chan 5)
     # names main_ch1/main_ch2/main_ch3/backflush_ch1/backflush_ch2/backflush_ch3/
     # bfpres_ch1/bfpres_ch2 match setup.yaml's flows/aux_pressures keys and
     # are driven by ucats.py's _schedule_injection_timing(). Note there is
